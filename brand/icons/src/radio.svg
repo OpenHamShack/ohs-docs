@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Radio: the dial scale and tuning knob of an all-band transceiver.
+     Glyph master on the 48-unit icon grid: live area 8-40, stroke 3,
+     round caps and joins. class "p" is drawn in the app's colour, class "s"
+     in ink. brand/tools/render.mjs composes every tile and platform output
+     from this file; edit the geometry here and nowhere else. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#ffb06e;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#ffb06e;stroke:none}.sf{fill:#e8eef5;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path class="s" d="M8 15 H40"/>
+  <path class="p" d="M10 15 V9 M16 15 V11.5 M22 15 V9 M28 15 V11.5 M34 15 V9 M40 15"/>
+  <circle class="s" cx="24" cy="30" r="8.5"/>
+  <circle class="pf" cx="27" cy="27" r="2.4"/>
+</g>
+</svg>

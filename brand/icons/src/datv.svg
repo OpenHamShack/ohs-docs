@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DATV: a Yagi (terrestrial) and the same flat-topped wideband carrier as QO-100 WB.
+     Glyph master on the 48-unit icon grid: live area 8-40, stroke 3,
+     round caps and joins. class "p" is drawn in the app's colour, class "s"
+     in ink. brand/tools/render.mjs composes every tile and platform output
+     from this file; edit the geometry here and nowhere else. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#f8a3e5;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#f8a3e5;stroke:none}.sf{fill:#e8eef5;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path class="s" d="M8.5 39.5 L24 24"/>
+  <path class="s" d="M6.20 31.20 L16.80 41.80 M13.26 26.26 L21.74 34.74 M20.32 21.32 L26.68 27.68"/>
+  <path class="p" d="M24.5 20 H27 L30 10 H37 L40 20 H42"/>
+</g>
+</svg>

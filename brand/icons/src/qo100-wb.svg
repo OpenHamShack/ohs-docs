@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- QO-100 WB: a dish (via the satellite) and a flat-topped wideband carrier (digital TV).
+     Glyph master on the 48-unit icon grid: live area 8-40, stroke 3,
+     round caps and joins. class "p" is drawn in the app's colour, class "s"
+     in ink. brand/tools/render.mjs composes every tile and platform output
+     from this file; edit the geometry here and nowhere else. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#ceb5ff;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#ceb5ff;stroke:none}.sf{fill:#e8eef5;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path class="s" d="M9 22 Q11 37 26 39"/>
+  <path class="s" d="M14.5 33.5 L21 27"/>
+  <circle class="sf" cx="22" cy="26" r="2.6"/>
+  <path class="p" d="M24.5 20 H27 L30 10 H37 L40 20 H42"/>
+</g>
+</svg>

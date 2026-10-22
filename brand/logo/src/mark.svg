@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The mark: a shack whose roofline carries on past the ridge as an aerial,
+     aimed up and to the right with its element at the end.
+
+     Why this: the shack is the radio room the name refers to; the open
+     floor (no base line) is the "open" in the name - open source, an open
+     door; and the aerial is the same up-and-right gesture as the dish and
+     the Yagi in the app icons, so the platform's mark and its apps' icons
+     are one family. It avoids the usual radio shorthand (lightning,
+     concentric waves from a mast, a globe, a clock) and in particular the
+     clock-and-map look of OpenHamClock.
+
+     48-unit grid, stroke 4 (matching the wordmark's Heavy stems at lockup size), round caps and joins. class "p" is the accent
+     (the aerial), class "s" is ink (the shack). In one colour the aerial and
+     the roof become one continuous line, which is meant: it still reads.
+     Edit geometry here; brand/tools/logo.mjs composes every lockup from it. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#4fd1e8;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#4fd1e8;stroke:none}</style>
+<rect width="48" height="48" fill="#0a0e13"/>
+<g id="glyph" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path class="s" d="M12 43 V29 L23 18 L34 29 V43"/>
+  <path class="p" d="M23 18 L31.5 9.5"/>
+  <circle class="pf" cx="34.5" cy="6.5" r="4.2"/>
+</g>
+</svg>

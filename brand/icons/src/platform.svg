@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Platform: the OpenHamShack mark (brand/logo/src/mark.svg) fitted to the
+     icon grid's live area at the icon system's stroke of 3, so the
+     platform's icon sits in a row of app icons as one of them. If the mark
+     changes, change this to match.
+     class "p" is drawn in the app's colour, class "s" in ink. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#3adaf2;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#3adaf2;stroke:none}.sf{fill:#e8eef5;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path class="s" d="M15.12 37.69 V27.33 L23.26 19.19 L31.40 27.33 V37.69"/>
+  <path class="p" d="M23.26 19.19 L29.55 12.90"/>
+  <circle class="pf" cx="31.77" cy="10.68" r="3.21"/>
+</g>
+</svg>

@@ -1,0 +1,210 @@
+{
+  "pairs": [
+    {
+      "pair": "ink on bg",
+      "dark": 16.6,
+      "light": 16.6,
+      "needs": 7.0
+    },
+    {
+      "pair": "ink-dim on bg",
+      "dark": 8.8,
+      "light": 7.0,
+      "needs": 4.5
+    },
+    {
+      "pair": "accent on bg",
+      "dark": 10.7,
+      "light": 5.0,
+      "needs": 4.5
+    },
+    {
+      "pair": "carrier on bg",
+      "dark": 11.0,
+      "light": 5.2,
+      "needs": 4.5
+    },
+    {
+      "pair": "tx on bg",
+      "dark": 6.9,
+      "light": 6.0,
+      "needs": 4.5
+    },
+    {
+      "pair": "rx on bg",
+      "dark": 10.8,
+      "light": 5.6,
+      "needs": 4.5
+    },
+    {
+      "pair": "warn on bg",
+      "dark": 12.1,
+      "light": 5.5,
+      "needs": 4.5
+    },
+    {
+      "pair": "info on bg",
+      "dark": 9.4,
+      "light": 6.3,
+      "needs": 4.5
+    },
+    {
+      "pair": "ink on surface",
+      "dark": 15.1,
+      "light": 18.3,
+      "needs": 7.0
+    },
+    {
+      "pair": "ink-dim on surface",
+      "dark": 8.0,
+      "light": 7.8,
+      "needs": 4.5
+    },
+    {
+      "pair": "accent on surface",
+      "dark": 9.8,
+      "light": 5.5,
+      "needs": 4.5
+    },
+    {
+      "pair": "carrier on surface",
+      "dark": 10.1,
+      "light": 5.8,
+      "needs": 4.5
+    },
+    {
+      "pair": "tx on surface",
+      "dark": 6.3,
+      "light": 6.6,
+      "needs": 4.5
+    },
+    {
+      "pair": "rx on surface",
+      "dark": 9.9,
+      "light": 6.2,
+      "needs": 4.5
+    },
+    {
+      "pair": "warn on surface",
+      "dark": 11.0,
+      "light": 6.1,
+      "needs": 4.5
+    },
+    {
+      "pair": "info on surface",
+      "dark": 8.6,
+      "light": 6.9,
+      "needs": 4.5
+    },
+    {
+      "pair": "accent on-fill",
+      "dark": 10.4,
+      "light": 5.5,
+      "needs": 4.5
+    },
+    {
+      "pair": "carrier on-fill",
+      "dark": 10.5,
+      "light": 10.5,
+      "needs": 4.5
+    },
+    {
+      "pair": "tx on-fill",
+      "dark": 5.2,
+      "light": 5.7,
+      "needs": 4.5
+    },
+    {
+      "pair": "rx on-fill",
+      "dark": 10.4,
+      "light": 5.4,
+      "needs": 4.5
+    },
+    {
+      "pair": "warn on-fill",
+      "dark": 11.4,
+      "light": 11.4,
+      "needs": 4.5
+    },
+    {
+      "pair": "info on-fill",
+      "dark": 9.2,
+      "light": 6.9,
+      "needs": 4.5
+    },
+    {
+      "pair": "tx fill vs bg",
+      "dark": 3.7,
+      "light": 5.2,
+      "needs": 3.0
+    },
+    {
+      "pair": "line vs bg (decorative)",
+      "dark": 1.6,
+      "light": 1.4,
+      "needs": 1.0
+    }
+  ],
+  "apps": [
+    {
+      "app": "platform",
+      "tint_on_tile": 7.9,
+      "tint_on_bg": 11.5,
+      "shade_on_white": 6.6
+    },
+    {
+      "app": "remote",
+      "tint_on_tile": 7.9,
+      "tint_on_bg": 11.5,
+      "shade_on_white": 6.6
+    },
+    {
+      "app": "qo100-wb",
+      "tint_on_tile": 7.8,
+      "tint_on_bg": 10.8,
+      "shade_on_white": 7.2
+    },
+    {
+      "app": "qo100-nb",
+      "tint_on_tile": 7.9,
+      "tint_on_bg": 11.2,
+      "shade_on_white": 6.8
+    },
+    {
+      "app": "datv",
+      "tint_on_tile": 7.6,
+      "tint_on_bg": 10.5,
+      "shade_on_white": 7.3
+    },
+    {
+      "app": "radio",
+      "tint_on_tile": 7.7,
+      "tint_on_bg": 10.8,
+      "shade_on_white": 7.1
+    },
+    {
+      "app": "atv",
+      "tint_on_tile": 7.8,
+      "tint_on_bg": 11.1,
+      "shade_on_white": 6.8
+    },
+    {
+      "app": "icom",
+      "tint_on_tile": 8.0,
+      "tint_on_bg": 11.7,
+      "shade_on_white": 6.5
+    },
+    {
+      "app": "flex",
+      "tint_on_tile": 7.8,
+      "tint_on_bg": 11.0,
+      "shade_on_white": 7.0
+    },
+    {
+      "app": "digital-modes",
+      "tint_on_tile": 8.0,
+      "tint_on_bg": 11.6,
+      "shade_on_white": 6.5
+    }
+  ]
+}

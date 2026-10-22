@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Digital Modes: an FSK tone sequence (FT8/FT4/JS8), and the slot boundary it keeps to.
+     Glyph master on the 48-unit icon grid: live area 8-40, stroke 3,
+     round caps and joins. class "p" is drawn in the app's colour, class "s"
+     in ink. brand/tools/render.mjs composes every tile and platform output
+     from this file; edit the geometry here and nowhere else. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#96d987;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#96d987;stroke:none}.sf{fill:#e8eef5;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path class="p" d="M8 30 H13 V18 H18 V34 H23 V22 H28 V27 H33 V14 H40"/>
+  <path class="s" d="M8 40 H40"/>
+  <path class="s" d="M8 37 V40 M24 37 V40 M40 37 V40"/>
+</g>
+</svg>

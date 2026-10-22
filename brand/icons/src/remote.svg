@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Remote: a handset showing the station, the client that opens every app.
+     Glyph master on the 48-unit icon grid: live area 8-40, stroke 3,
+     round caps and joins. class "p" is drawn in the app's colour, class "s"
+     in ink. brand/tools/render.mjs composes every tile and platform output
+     from this file; edit the geometry here and nowhere else. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#3adaf2;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#3adaf2;stroke:none}.sf{fill:#e8eef5;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <rect class="s" x="14" y="7" width="20" height="34" rx="4"/>
+  <path class="s" d="M21.5 36 H26.5"/>
+  <path class="pf" d="M20.5 16.5 L30 22.5 L20.5 28.5 Z" stroke-linejoin="round"/>
+</g>
+</svg>

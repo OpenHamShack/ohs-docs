@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Platform icon at 32 px and below: brand/logo/src/mark-small.svg's
+     heavier drawing, filling more of the tile. At 16 px the standard glyph's
+     aerial and roof merge into a scribble; this keeps the shack a shack.
+     render.mjs picks <id>.small.svg for any output 32 px or smaller. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#3adaf2;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#3adaf2;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path class="s" d="M14.11 40.12 V28.95 L24.00 19.05 L33.89 28.95 V40.12"/>
+  <path class="p" d="M24.00 19.05 L30.45 12.61"/>
+  <circle class="pf" cx="34.32" cy="8.73" r="4.2"/>
+</g>
+</svg>

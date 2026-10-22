@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Icom: the front panel of a transceiver (display and main dial), as a rig app.
+     Glyph master on the 48-unit icon grid: live area 8-40, stroke 3,
+     round caps and joins. class "p" is drawn in the app's colour, class "s"
+     in ink. brand/tools/render.mjs composes every tile and platform output
+     from this file; edit the geometry here and nowhere else. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#57dfba;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#57dfba;stroke:none}.sf{fill:#e8eef5;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <rect class="s" x="8" y="13" width="32" height="22" rx="3.5"/>
+  <path class="p" d="M13 19 H25 M13 24 H22"/>
+  <circle class="s" cx="32" cy="24" r="4.5"/>
+  <path class="s" d="M13 30 H15 M18.5 30 H20.5 M24 30 H26"/>
+</g>
+</svg>

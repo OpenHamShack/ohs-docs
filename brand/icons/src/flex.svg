@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Flex: a panadapter (spectrum over waterfall), the face of a software-defined radio.
+     Glyph master on the 48-unit icon grid: live area 8-40, stroke 3,
+     round caps and joins. class "p" is drawn in the app's colour, class "s"
+     in ink. brand/tools/render.mjs composes every tile and platform output
+     from this file; edit the geometry here and nowhere else. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+<style>.p{stroke:#b0c1fe;fill:none}.s{stroke:#e8eef5;fill:none}.pf{fill:#b0c1fe;stroke:none}.sf{fill:#e8eef5;stroke:none}</style>
+<rect width="48" height="48" rx="10.5" fill="#0b1118"/>
+<g id="glyph" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path class="p" d="M8 24 H13 L15.5 20 L17.5 23 L21 11 L24.5 23 L27 19 L29 23 H33 L35 18 L37 24 H40"/>
+  <path class="s" d="M10 30 H38 M14 35.5 H34 M18 41 H30" stroke-width="2.6"/>
+</g>
+</svg>

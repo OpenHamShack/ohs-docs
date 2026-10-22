@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Outline the wordmark from Lato into SVG paths.
+
+    python3 brand/tools/build_wordmark.py
+
+The wordmark is "Open" in Lato Medium and "HamShack" in Lato Heavy. It is
+shipped as outlines, not as text in a font, for two reasons: the house rule
+(no fonts fetched or vendored - a station may have no route out) and so it
+looks the same on every screen, which a system-font wordmark cannot.
+Lato is under the SIL Open Font License 1.1, which allows this; no font file
+is copied into any product. The fonts are read from the Debian package
+fonts-lato on the build host, and this script is only needed to change the
+wordmark - the output (brand/logo/src/wordmark.json) is committed.
+
+The weight change carries "Open" when the mark is one colour; colour carries
+it otherwise. Kerning comes from Lato's own GPOS pair table; the gap at the
+weight change is set by eye (OPEN_GAP) because no font kerns across faces.
+Needs fontTools (Debian: python3-fonttools).
+"""
+import json, os
+from fontTools.ttLib import TTFont
+from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.pens.transformPen import TransformPen
+from fontTools.pens.boundsPen import BoundsPen
+
+FONTS = "/usr/share/fonts/truetype/lato"
+PARTS = [("Open", "Lato-Medium.ttf"), ("HamShack", "Lato-Heavy.ttf")]
+OPEN_GAP = 10          # font units added between "Open" and "HamShack"
+TRACK = -6             # font units per letter: a touch tight, as display type is
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logo", "src", "wordmark.json")
+
+def pair_kerning(font):
+    """Glyph-pair adjustments from GPOS PairPos (formats 1 and 2)."""
+    kern = {}
+    gpos = font["GPOS"].table
+    for lookup in gpos.LookupList.Lookup:
+        subs = lookup.SubTable
+        if lookup.LookupType == 9:
+            subs = [s.ExtSubTable for s in subs]
+        for st in subs:
+            if getattr(st, "LookupType", 2) != 2 and lookup.LookupType != 9:
+                continue
+            if not hasattr(st, "Format") or not hasattr(st, "Coverage"):
+                continue
+            cov = st.Coverage.glyphs
+            if st.Format == 1:
+                for i, first in enumerate(cov):
+                    for pvr in st.PairSet[i].PairValueRecord:
+                        v = pvr.Value1.XAdvance if pvr.Value1 and hasattr(pvr.Value1, "XAdvance") else 0
+                        if v:
+                            kern.setdefault((first, pvr.SecondGlyph), v)
+            elif st.Format == 2:
+                c1, c2 = st.ClassDef1.classDefs, st.ClassDef2.classDefs
+                for first in cov:
+                    rec = st.Class1Record[c1.get(first, 0)]
+                    for second, k2 in list(c2.items()):
+                        v = rec.Class2Record[k2].Value1
+                        v = getattr(v, "XAdvance", 0) if v else 0
+                        if v:
+                            kern.setdefault((first, second), v)
+    return kern
+
+# Short app names, outlined the same way, for places where a label is part
+# of an image (a TV banner, a store graphic) and so cannot be live text.
+LABEL_FONT = "Lato-Bold.ttf"
+LABELS = ["Remote", "QO-100 WB", "QO-100 NB", "DATV", "Radio", "ATV", "Icom", "Flex", "Digital Modes"]
+
+def outline(text, fname, track=0):
+    f = TTFont(os.path.join(FONTS, fname))
+    cmap, gs, hmtx = f.getBestCmap(), f.getGlyphSet(), f["hmtx"]
+    kern = pair_kerning(f)
+    x, d, prev = 0, "", None
+    for ch in text:
+        g = cmap[ord(ch)]
+        if prev:
+            x += kern.get((prev, g), 0) + track
+        pen = SVGPathPen(gs)
+        gs[g].draw(TransformPen(pen, (1, 0, 0, -1, x, 0)))
+        d += pen.getCommands()
+        x += hmtx[g][0]
+        prev = g
+    return {"text": text, "font": fname, "advance": x, "d": d}
+
+def main():
+    x = 0
+    paths = []
+    ymin, ymax = 0, 0
+    meta = {}
+    for idx, (text, fname) in enumerate(PARTS):
+        f = TTFont(os.path.join(FONTS, fname))
+        cmap, gs, hmtx = f.getBestCmap(), f.getGlyphSet(), f["hmtx"]
+        kern = pair_kerning(f)
+        upm = f["head"].unitsPerEm
+        meta = {"upm": upm, "ascender": f["OS/2"].sTypoAscender, "capHeight": f["OS/2"].sCapHeight,
+                "xHeight": f["OS/2"].sxHeight, "descender": f["OS/2"].sTypoDescender}
+        if idx:
+            x += OPEN_GAP
+        d = ""
+        prev = None
+        for ch in text:
+            g = cmap[ord(ch)]
+            if prev:
+                x += kern.get((prev, g), 0) + TRACK
+            pen = SVGPathPen(gs)
+            # Font units are y-up; SVG is y-down. Baseline at y=0.
+            gs[g].draw(TransformPen(pen, (1, 0, 0, -1, x, 0)))
+            d += pen.getCommands()
+            bp = BoundsPen(gs); gs[g].draw(bp)
+            if bp.bounds:
+                ymin, ymax = min(ymin, bp.bounds[1]), max(ymax, bp.bounds[3])
+            x += hmtx[g][0]
+            prev = g
+        paths.append({"text": text, "font": fname, "d": d})
+    out = {"$comment": "Generated by brand/tools/build_wordmark.py from Lato (SIL OFL 1.1). Units: font units, baseline y=0.",
+           "advance": x, "yMin": ymin, "yMax": ymax, **meta, "parts": paths,
+           "labels": {t: outline(t, LABEL_FONT) for t in LABELS}}
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    with open(OUT, "w") as fh:
+        json.dump(out, fh, indent=1)
+        fh.write("\n")
+    print("advance", x, "capHeight", meta["capHeight"], "upm", meta["upm"])
+
+if __name__ == "__main__":
+    main()
