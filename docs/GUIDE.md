@@ -572,7 +572,11 @@ rather than skipping it.
   in the evening that pins the IF AGC at full reduction, so ohs-box carries
   `rfgain_sel=4` in soapyArgs. SDRplay's licence grants no explicit right
   to redistribute the API, and the Radio package carries it (image and
-  build context): Brian decides before that package goes on a public feed.
+  build context). Brian decided on 22/10/2026: the SDRplay API is "use if
+  installed" on every form. The image stops carrying it. A controller gets
+  it as a staged host library through a named privileged operation, and
+  Radio loads it at run time (RADIO-SDR-PLAN.md §5.6, §6.3). Store Radio
+  built that way may go on a public feed.
 - **openhamshack.com (20i): a new web folder answers 403 for about a
   minute.** Apache reports "Server unable to read htaccess file, denying
   access to be safe" for every request in a folder made or re-moded a
@@ -1230,7 +1234,7 @@ rather than skipping it.
 
 - **The plan:** [PLATFORM-PLAN.md](PLATFORM-PLAN.md).
 - **Radio as a full SDR receiver** (Rust decoders in ohs-libs `shack_sdr`,
-  the runtime codec loader, Milestones 1-4):
+  the runtime codec loader and host libraries, Milestones 1-5):
   [RADIO-SDR-PLAN.md](RADIO-SDR-PLAN.md).
 - **The latest handover:** [../HANDOVER.md](../HANDOVER.md).
 - **Per-repo detail:**

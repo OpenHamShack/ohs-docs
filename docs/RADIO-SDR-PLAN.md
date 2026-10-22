@@ -24,6 +24,30 @@ Brian's decisions this plan takes as given (22/10/2026):
 - Each milestone ships in desktop Radio (Linux, Windows, macOS) and store
   Radio at the same time.
 
+Brian's answers to this plan's first four questions (22/10/2026):
+
+1. **codec2:** keep shipping it (LGPL) in the Windows and macOS bundles
+   and the store image, as now.
+2. **Encumbered codecs on a controller come from a host package**, not an
+   admin upload. The platform installs the codec on the controller itself
+   (for example Debian's faad2), and store Radio uses it from there (§5.6).
+3. **The SDRplay API is "use if installed" on every form.**
+   - It comes out of the store image.
+   - The desktop builds never carried it: checked, nothing under
+     openhamshack-nb `packaging/` or the desktop build scripts names it;
+     only `tools/build-store.sh` and the store Containerfile do.
+   - Radio loads the user's own installed API at run time, as it loads
+     codecs, and a missing one reads "install SDRplay's API to use this
+     radio".
+   - On a controller it arrives the same way as the codecs (§6.3).
+
+   With that, store Radio carries nothing whose redistribution is in doubt
+   and can be **published on a feed**.
+4. **CW gets a Rust port too, as a later milestone, M5** (after digital
+   voice, §8.5). `shack_cw` stays the live decoder until the port beats it
+   on the existing CW benchmarks. Icom and Flex switch when it does.
+   M1 starts now as designed.
+
 ## 0. The decisions, in one place
 
 | # | Question | Decision (reasons in the section) |
@@ -31,13 +55,13 @@ Brian's decisions this plan takes as given (22/10/2026):
 | 1 | Where the new Rust lives | A new crate **`shack_sdr`** in `~/ohs-libs/rust/shack_sdr`. It is one mixed Rust+Python wheel, `shack-sdr`. It is not called `ohssdr`: the brand kit forbids those initials as a code prefix. It does not go inside ohsdigi, and it does not go in openhamshack-nb (§2). |
 | 2 | DSP pipeline | M1 adds **no new channeliser**. The engine's existing FFT filter bank cuts one channel for each decoder session. Rust worker threads decode with the GIL released, and Python polls for the results. The bank moves into Rust later, as the one channeliser for every app (§3). |
 | 3 | Decoder interface | One Rust trait (`Decoder`) and one Python face (`shack_sdr.Host` plus a catalogue). Every decoder produces five kinds of output: text, frame, image, audio and meta. They reach the desktop through a new engine feed, `decoders`, and the store through a new `api/decoders` (§4). |
-| 4 | Codec loader | Lives in `shack_sdr`. It opens libraries only by full path from a fixed list of folders on each OS, checks the version and probes each new file in a child process first. It returns codes, never sentences. It is backed by a build check that fails if an encumbered library is linked or bundled anywhere (§5). |
-| 5 | SDR sources | Packet's own ctypes bindings for the RTL-SDR and the SDRplay API move into `shack_sdr`, so all three desktop OSes get both radios without SoapySDR. SoapySDR stays as the generic route on Linux and in the store. The Pluto is unchanged, transmit included (§6). |
+| 4 | Codec loader | Lives in `shack_sdr`. It opens libraries only by full path from a fixed list of folders on each OS, checks the version and probes each new file in a child process first. It returns codes, never sentences. It is backed by a build check that fails if an encumbered library is linked or bundled anywhere (§5). On a controller, codecs come from host packages that a named privileged operation stages and a read-only mount declared in the manifest exposes to the app (§5.6). |
+| 5 | SDR sources | Packet's own ctypes bindings for the RTL-SDR and the SDRplay API move into `shack_sdr`, so all three desktop OSes get both radios without SoapySDR. The SDRplay API is the user's own on every form: on a controller it is staged on the host like a codec, and the store image stops carrying it and SoapySDRPlay3 (§6.3). SoapySDR stays as the generic route on Linux. The Pluto is unchanged, transmit included (§6). |
 | 6 | Tests with no transmitter | Synthetic generators in Rust, the Python decoder kept as a reference until the Rust one beats it, and recordings in iqlib. Fixtures that are not ours stay out of the public repos (§7). |
 | 7 | The first decoder | **RTTY**, both as the mode decoder and as fixed-frequency sessions independent of the dial (§8.2). |
 | 8 | Licensing | Read and port from GPL-3.0-compatible sources, with credit. AAC, AMBE and IMBE are only ever loaded at run time, never ported, even from permissively licensed code (§9). |
 
-Questions only Brian can answer are in §10.
+Brian's answers to the first questions are above; what is still open is in §10.
 
 ## 1. Where Radio stands today (what this builds on)
 
@@ -449,7 +473,7 @@ and its clients see one list.
   keeps its child process (Brian, 13/10/2026, `ohsradio/cwskim.py`).
 
 This keeps "one of each" without forcing a rewrite of decoders that work
-(see §10 Q4).
+(see M5 in §8.5: CW is ported later, and `shack_cw` stays live until the port beats it).
 
 ### 4.3 Engine (desktop and store alike)
 
@@ -533,7 +557,7 @@ Shapes:
 
 | Codec | For | Library names tried | Licence and problem | May we ship it? |
 |---|---|---|---|---|
-| codec2 | FreeDV (today), M17 later | `libcodec2.so.1.2`, `libcodec2.so.1.0`; `libcodec2.dll`, `codec2.dll`; `libcodec2.dylib`, `libcodec2.1.2.dylib` | LGPL-2.1, no patent problem | **We do today**: in the Windows and macOS bundles (`packaging/windows/THIRD-PARTY.txt:84`, `packaging/macos/THIRD-PARTY.txt:80`) and Debian's in the store image (Containerfile line 69). See §10 Q1. |
+| codec2 | FreeDV (today), M17 later | `libcodec2.so.1.2`, `libcodec2.so.1.0`; `libcodec2.dll`, `codec2.dll`; `libcodec2.dylib`, `libcodec2.1.2.dylib` | LGPL-2.1, no patent problem | **Yes, and we keep doing so** (Brian, 22/10): in the Windows and macOS bundles (`packaging/windows/THIRD-PARTY.txt:84`, `packaging/macos/THIRD-PARTY.txt:80`) and Debian's in the store image (Containerfile line 69). |
 | faad2 | DAB+, DRM (AAC, HE-AAC v1/v2, 960-sample frames) | `libfaad.so.2`; `libfaad-2.dll`, `libfaad2.dll`, `libfaad.dll`; `libfaad.2.dylib`, `libfaad.dylib` | GPL-2.0-or-later (`libfaad/decoder.c` header, checked 22/10/2026); AAC patents | **never**: user-installed only. Debian 13 main has `libfaad2` 2.11.2 (apt-cache on shack, 22/10). |
 | fdk-aac | DAB+, DRM including xHE-AAC | `libfdk-aac.so.2`; `libfdk-aac-2.dll`, `libfdk-aac.dll`; `libfdk-aac.2.dylib` | Fraunhofer's own licence, which names patent licensing through Via Licensing (`NOTICE`, checked 22/10). **[guess]** GPL-incompatible as Debian and the FSF read it; not in Debian main. | **never** |
 | mbelib (or mbelib-neo) | DMR, D-STAR, YSF, P25, NXDN voice | `libmbe.so.1`, `libmbe.so`; `libmbe.dll`, `mbelib.dll`; `libmbe.dylib` | mbelib: ISC (its `COPYRIGHT`) with its own patent notice (README "PATENT NOTICE"). mbelib-neo: GPL-2.0-or-later (OnAir's README). The AMBE/IMBE patents are the problem. **[guess]** not packaged in Debian 13 (no candidate on shack). | **never** |
@@ -555,7 +579,7 @@ the checks (§5.3) wins.
    | Linux desktop | `~/.local/share/openhamshack-radio/codecs/` (NB: `openhamshack-nb/codecs/`; `$OHS_RADIO_DATA/codecs` when set) |
    | Windows | `%APPDATA%\openhamshack-radio\data\codecs\` |
    | macOS | `~/Library/Application Support/openhamshack-radio/codecs/` (beside the data folder `ohscore/host.py` gives) |
-   | Store | `/data/codecs/` on the module's data volume, which survives updates and is backed up (module.yaml `volumes`). See §10 Q2 for how a file gets there. |
+   | Store | `/opt/hostlibs/<codec>/`: the controller's staged host library, mounted read-only (§5.6). There is no user-writable codecs folder on a controller. |
 
 3. **Only for codecs we may ship (codec2 today):** the app's own bundle,
    as `host.find_library` does now. **Never for an encumbered codec**, so
@@ -671,6 +695,115 @@ Today's Radio artefacts carry none of these libraries. Its THIRD-PARTY
 files and the Containerfile name no AAC or AMBE library (grep, 22/10).
 So the check goes in green and stays that way.
 
+### 5.6 Codecs, and the SDRplay API, on a controller: host libraries
+
+Brian, 22/10/2026: a controller gets an encumbered codec from a **host
+package** that the platform installs, never from an admin's upload. The
+SDRplay API arrives the same way (§6.3). The pieces, in the Dock360
+edition, are below.
+
+**What Dock360 allows today.** Checked on dock360
+`feature/ohs-edition-030-c`:
+
+- A manifest volume is always a directory the platform creates under the
+  module's own data folder. `VolumeSpec` has `name`, `container_path`,
+  `mode` (`rw` or `ro`) and nothing that names a host path
+  (`src/dock360/manifest.py` `VolumeSpec`; `src/dock360/quadlet.py` writes
+  `Volume=<data_dir>/<name>:<path>:<mode>`).
+- `runtime.devices` takes only `/dev` paths. `usb_bus` binds
+  `/dev/bus/usb` (`quadlet.py`).
+- So there is **no declared way to mount a host file or directory** into
+  an app.
+- `runtime.extra_args` is passed to podman verbatim, unvalidated
+  (`manifest.py` `RuntimeSpec.parse`; `quadlet.py` `PodmanArgs={arg}`), so
+  a manifest *could* bind any host path. We must not build on that.
+  Separately from this plan, the platform owner should consider refusing
+  `extra_args` in signed `shack-` modules: as it stands, any one of them
+  can mount anything.
+
+**1. The named privileged operations** (`src/dock360_helper/ops/hostlib.py`):
+
+| Verb | Arguments (validated) | Does |
+|---|---|---|
+| `hostlib.list` | none | for each allow-listed name: installed or not, version, staged files with sha256, when, by whom |
+| `hostlib.install` | `{"name": <one of the allow-list>}`, plus for `sdrplay-api` only `{"version": <one of its pinned versions>}` | installs and stages that one library (below). Refused while any app is on the air (the busy gate's rule for updates). |
+| `hostlib.remove` | `{"name"}` | empties its staged folder and removes the package it installed. It never removes a package that was on the host before. |
+| `hostlib.restage` | `{"name"}` | copies the files again after an `apt.upgrade` (run by the platform after every upgrade, so the staged copy follows Debian's security updates) |
+
+- **The allow-list is code in the helper**, not data the web tier sends,
+  as `apt.py`'s fixed command lines are. Each entry fixes:
+  - the Debian package, with its archive area and component;
+  - the file patterns to stage, matched against `dpkg -L` of that package
+    only;
+  - for SDRplay, the vendor's installer URL, pinned versions and sha256.
+- **Nothing else from the request reaches a command line.**
+- **The arguments are logged** through the helper's redaction (GUIDE §5).
+
+**2. Staging.** Each library is copied, root-owned with mode 0644, into
+`/var/lib/dock360/hostlibs/<name>/`. A `stamp.json` beside it records the
+package, version, files and hashes.
+
+- Files are written beside the old ones and renamed into place. The
+  folder itself is never replaced, because a bind mount holds the folder:
+  replacing it would leave the app looking at the old, deleted one.
+- **Why a staged copy, not a bind of `/usr/lib/<multiarch>/libfaad.so.2`.**
+  A bound file pins its inode, so after apt replaced the library the
+  container would keep the old one until a restart, and never learn it
+  had changed. A bind of all of `/usr/lib` would show the app everything
+  on the host.
+
+**3. The manifest key.** The `openhamshack:` block gains
+`host_libraries: [sdrplay-api, faad2, fdk-aac]`.
+
+- Validation is strict: each name must be on the edition's allow-list, the
+  same list the helper holds.
+- For each name, quadlet writes
+  `Volume=/var/lib/dock360/hostlibs/<name>:/opt/hostlibs/<name>:ro`, and
+  sets `SHACK_HOSTLIBS=/opt/hostlibs` in the container's environment.
+- The platform creates every declared folder, empty, when the module is
+  installed. The mount therefore exists from the first start, and a
+  library installed later appears inside the running container with no
+  restart. The loader's "Look again" finds it.
+- `SPEC_VERSION` rises (CONTROLLER-CONTRACT §8's rule for manifest
+  additions).
+
+**4. How an administrator triggers it.**
+
+- **Where:** the controller's admin interface gains an **Optional
+  libraries** section (on the Hardware page, or each app's page).
+  - It lists what the installed apps declared in `host_libraries`, each
+    with its state from `hostlib.list`, what it is for ("DAB+ and DRM
+    sound in Radio"), and a short licence and patent note.
+  - Install and Remove buttons are admin-only (`403 not_admin`
+    otherwise; CONTROLLER-CONTRACT §9) and audited.
+- **The app cannot trigger root work.** Radio, and so a stolen app token,
+  can only show "Ask your controller's administrator to install faad2
+  (Controller › Optional libraries)". Radio's `api/decoders` `codecs`
+  entries carry `"host": true` and the state, so Remote can say the same.
+- **Later:** the same three verbs behind admin-only routes under
+  `/api/shack/v1/hostlibs` for a Remote admin screen. Not in M1.
+
+**5. What each library is on Debian 13** (the controller's: podman 5.4 on
+Debian 13 per `quadlet.py`'s comment). Checked 22/10/2026 on
+packages.debian.org and sources.debian.org:
+
+| Name | Debian | Result on a controller |
+|---|---|---|
+| `faad2` | `libfaad2` 2.11.2-1 in **main** (trixie; 2.11.4 in forky and sid) | `hostlib.install faad2` is plain `apt-get install libfaad2`. Covers DAB+ and DRM's plain AAC and HE-AAC; not xHE-AAC. |
+| `fdk-aac` | `libfdk-aac2t64` 2.0.3-1 in **non-free** (trixie) | needs the non-free component, which a controller does not have. The op adds one pinned source (`/etc/apt/sources.list.d/openhamshack-fdk-aac.sources`, non-free only, with an apt preference pinning everything from it to -1 except `libfdk-aac2t64`), installs, and removes both again on `hostlib.remove`. It is the only route to xHE-AAC (DRM). **Needs Brian:** §10 A. |
+| `mbelib` | **not packaged** in Debian at all (no source package by that name or `libmbe` on sources.debian.org or packages.debian.org) | **not available on a controller** under this rule. DMR, D-STAR, YSF, P25 and NXDN decode everything but voice there, and the UI says so. A desktop user installs it as OnAir's users do. **Needs Brian:** §10 B, whether to allow an exception. |
+| `codec2` | in the image already (`libcodec2-1.2`) | not a host library |
+| `sdrplay-api` | not packaged by anyone; SDRplay publishes a `.run` installer | §6.3 |
+
+**6. The loader, unchanged.**
+
+- On a controller, step 2 of §5.2 is `/opt/hostlibs/<name>/`.
+- The child-process probe (§5.3) still runs on first sight of each file,
+  which is what catches a host library built against a different glibc
+  from the image's, if the two Debian versions ever drift apart.
+- The build check (§5.5) still scans the image. Host libraries are never
+  in it, so it stays green.
+
 ## 6. Decision 5: SDR sources and the broker
 
 ### 6.1 The three families
@@ -678,7 +811,7 @@ So the check goes in green and stays that way.
 | Family | Linux desktop | Windows | macOS | Store (controller) | Transmit |
 |---|---|---|---|---|---|
 | **Pluto / LibreSDR** | `pluto` (libiio), unchanged | unchanged (ADI's libiio 0.26 bundled) | unchanged (libiio built from source) | `pluto-1` as today. **Add `libresdr-1` and the `libresdr` class** to `broker_devices`: the broker has it as a class of its own, and Radio does not declare it. | unchanged: Radio's own driver, the lease, the broker's `onair` (SERVER-API "Transmitting") |
-| **SDRplay RSPdx** | new `sdrplay`: the user's installed API through `shack_sdr`'s ctypes binding (moved from `shack_packet.sdr.sdrplay`) | the same; the API from SDRplay's own Windows installer, never bundled | the same, which needs §5.4's entitlement | M1: `soapy` with SoapySDRPlay3, as built on 12/10 (`sdrplay-1`). M2: the direct `sdrplay` kind, after a box test Brian approves; SoapySDRPlay3 then leaves the image. | receive only |
+| **SDRplay RSPdx** | new `sdrplay`: the user's installed API through `shack_sdr`'s ctypes binding (moved from `shack_packet.sdr.sdrplay`) | the same; the API from SDRplay's own Windows installer, never bundled | the same, which needs §5.4's entitlement | M1: the direct `sdrplay` kind (`sdrplay-1`), with the API from the controller's staged host library (§6.3). The image stops carrying the API and SoapySDRPlay3. | receive only |
 | **RTL-SDR** | new `rtlsdr`: Debian's `librtlsdr0` (a .deb Recommends), its udev rule, and the DVB driver kept off it | new `rtlsdr`: `rtlsdr.dll` and `libusb-1.0.dll` bundled; the user fits the WinUSB driver once with Zadig, and the setup page says how (wording from `shack_packet/sdr/rtlsdr.py`) | new `rtlsdr`: `librtlsdr.dylib` and `libusb-1.0.dylib` bundled, install names rewritten | new `rtlsdr` (the image adds `librtlsdr0`); manifest gains `rtlsdr-1` (`usb_id: 0bda:2838`, `claim: runtime`) and `rtlsdr` in `broker_devices` | receive only |
 | **Others** (Airspy, HackRF as a receiver, …) | `soapy`, as today | **not in M1**: listed greyed, with the sentence "This radio needs SoapySDR, which Radio for Windows does not include yet" | the same, for macOS | `soapy` where the image has the module (only SDRplay today) | receive only |
 
@@ -690,8 +823,10 @@ macOS:
   `rtlsdr.py` gives for ctypes over pyrtlsdr);
 - SoapySDR's Python bindings are SWIG modules that would have to be built
   for each frozen Python;
-- the SDRplay API stays the user's own install everywhere on the desktop,
-  which is the redistribution position GUIDE §5 records.
+- the SDRplay API is the user's own install on every form (Brian,
+  22/10/2026), and a ctypes binding needs only its C library at run time.
+  SoapySDRPlay3, by contrast, has to be compiled against SDRplay's
+  headers.
 
 The move happens inside one repository (ohs-libs), and `shack_packet.sdr`
 re-exports the moved names so Packet changes nothing. It needs the Packet
@@ -750,6 +885,68 @@ whatever is on the socket).
 path, lease and broker `onair` are unchanged. A key-up on an RTL or an RSP
 is refused before the broker is asked ("This radio can only receive",
 SERVER-API "What it is not").
+
+### 6.3 The SDRplay API: the user's own, on every form
+
+Brian, 22/10/2026: use if installed, everywhere.
+
+| Form | Where the API comes from | What Radio shows without it |
+|---|---|---|
+| Linux desktop | SDRplay's own installer, which puts `libsdrplay_api.so.3` in `/usr/local/lib` and runs its service under systemd **[guess: check the 3.15 installer's layout]** | the RSP listed, greyed: "Install SDRplay's API to use this radio" (catalog text, with a link to sdrplay.com) |
+| Windows | SDRplay's installer ("SDRplay API 3.x", which installs and starts its service), found at its install path, or by `SHACK_SDRPLAY_LIB` (as `shack_packet/sdr/sdrplay.py` does today) | the same |
+| macOS | SDRplay's installer. Needs §5.4's entitlement, because SDRplay signs the library and we do not. | the same |
+| Store (controller) | the host library `sdrplay-api` (§5.6), mounted at `/opt/hostlibs/sdrplay-api/`. `store/radio/entrypoint.sh` starts `sdrplay_apiService` from there when it is present. Today it starts `/usr/local/bin/sdrplay_apiService`. The service still runs inside the container, because it must share the client's `/dev/shm` (GUIDE §5). | the same sentence, as "Ask your controller's administrator to install SDRplay's API (Controller › Optional libraries)" |
+
+**Is anything bundled today?**
+
+- **Desktop:** no. Nothing in openhamshack-nb `packaging/`,
+  `tools/build-deb.sh`, `build-appimage.sh`, `build-macos.sh` or the
+  Windows specs names it (grep, 22/10).
+- **Store:** yes, and it comes out.
+  - The image carries it: `store/radio/Containerfile`'s `sdrplay` stage,
+    `tools/build-store.sh`'s `SDRPLAY_DIST`, `tools/vendor/sdrplay.lock`.
+  - All of those go.
+  - So does the SoapySDRPlay3 build, which needs SDRplay's headers.
+  - The image then carries only Debian packages and our own GPL code.
+
+**`hostlib.install sdrplay-api`** is the one host library without a
+Debian package.
+
+- **The allow-list pins** SDRplay's published installer URL, the versions
+  we have tested and each one's sha256: today's `tools/vendor/sdrplay.lock`
+  hash moves there.
+- **The op:**
+  - downloads the installer;
+  - checks the hash;
+  - **unpacks it without running it** (`--noexec --target`, as the
+    Containerfile does now: the installer wants systemd and udev, and
+    running it on the host would start a second service that fights the
+    container's for the radio);
+  - stages `libsdrplay_api.so.3*`, `sdrplay_apiService` and SDRplay's
+    licence text.
+- **A controller with no route out:** the same op accepts the installer
+  file, checked against the same pinned hashes. That is SDRplay's own
+  file proved by hash, not an arbitrary library.
+- **The udev rule:** the RSP's rule stays `udev.allow`, as today
+  (GUIDE §5).
+- **Needs Brian:** §10 C. The licence acceptance and the download on the
+  administrator's behalf.
+
+**Publishing.** With the API and SoapySDRPlay3 out of the image, store
+Radio carries nothing whose redistribution is in doubt. GUIDE §5's "Brian
+decides before that package goes on a public feed" is answered, and store
+Radio can go on the feeds from the first release built this way.
+
+**Order of work, so ohs-box never loses its radio:**
+
+1. Ship the platform release with `hostlib.*`, `host_libraries` and the
+   Optional libraries page.
+2. Install `sdrplay-api` on the controller.
+3. Only then ship a Radio image without the API.
+
+An image without the API, on a controller without the host library, shows
+the RSP greyed with the sentence above. That is a clear failure, not a
+silent one.
 
 ## 7. Decision 6: testing with no transmitter
 
@@ -827,16 +1024,26 @@ are not engaged. RTTY's Enable TX encoder is untouched.
      but taking the library's path from `shack_sdr.codecs`;
    - the build-time check on every artefact;
    - the macOS entitlement.
-3. **SDR sources:**
-   - `rtlsdr` and `sdrplay` on all three desktop OSes;
+3. **Host libraries on the platform** (§5.6), Dock360 edition work for
+   its owning session:
+   - `hostlib.list`, `install`, `remove` and `restage`;
+   - the `host_libraries` manifest key;
+   - the Optional libraries page;
+   - allow-list entries `sdrplay-api` and `faad2`. faad2 has no user until
+     M3, but proves the apt path. `fdk-aac` waits for §10 A.
+4. **SDR sources:**
+   - `rtlsdr` and `sdrplay` (the direct API) on all three desktop OSes and
+     in store Radio;
+   - the store image stops carrying the SDRplay API and SoapySDRPlay3
+     (§6.3);
    - `rtlsdr` and `libresdr` declared in store Radio;
    - per-device rate lists and gain mapping.
-4. **The decoder panel:**
+5. **The decoder panel:**
    - desktop Radio's Decoders view, "Decode here as", and Settings ›
      Decoders;
    - store Radio's `api/decoders` and `decoder` events;
    - `fakeshack.py` fixtures.
-5. **One decoder end to end: RTTY in Rust.**
+6. **One decoder end to end: RTTY in Rust.**
    - 45.45, 50 and 75 Bd; 170, 425, 450 and 850 Hz; normal or reversed;
    - ITA2 with the US-TTY figures (as `rtty.py`), unshift-on-space, AFC
      and squelch;
@@ -915,6 +1122,24 @@ beyond the unchanged mode path.
   - `module.yaml` declares `rtlsdr-1` and `libresdr-1`, with `rtlsdr` and
     `libresdr` in `broker_devices`;
   - the claim, release and re-claim tests cover `rtlsdr`.
+- [ ] SDRplay is use-if-installed everywhere:
+  - The store image carries no SDRplay file and no SoapySDRPlay3.
+    `check-encumbered.py`'s file scan gains `libsdrplay_api*` and
+    `sdrplay_apiService`, so it cannot come back unnoticed.
+  - `entrypoint.sh` starts the service from `/opt/hostlibs/sdrplay-api/`.
+  - Without it, every form shows "Install SDRplay's API to use this
+    radio".
+- [ ] **Platform host libraries** (§5.6):
+  - the helper verbs, with tests that every argument outside the
+    allow-list is refused and that nothing but the pinned files is staged;
+  - `host_libraries` validation and the quadlet `Volume=` lines (tested
+    with `quadlet -dryrun`, as `quadlet.py`'s comments do);
+  - the folders created at module install;
+  - `hostlib.restage` after `apt.upgrade`;
+  - the admin page, admin-only and audited.
+  - A platform release carrying them goes **before** the Radio image
+    without the API (§6.3's order). ohs-box's RSPdx works through the host
+    library: a receive-only check, with Brian's approval for the session.
 
 **Panel and API**
 
@@ -964,7 +1189,8 @@ beyond the unchanged mode path.
 - [ ] NB and Radio are released together through `tools/release-all.sh`
   (Linux, Windows and macOS built and proven).
 - [ ] Store Radio is built, checked and uploaded to Brian's controllers
-  (feed: see §10 Q3). There are release notes for both.
+  (the store Radio built this way may go on a public feed: §6.3). There
+  are release notes for both.
 
 ### 8.4 The change checklist (GUIDE §3) for M1
 
@@ -975,9 +1201,13 @@ beyond the unchanged mode path.
    - REPO-LAYOUT §2 and §3 (`rust/` becomes real; a `shack-sdr` row in
      the artefacts table).
 
-   CONTROLLER-CONTRACT: no change; the broker classes exist.
-2. **Server:** store Radio (`ohscore/server/`, shared with NB's store
-   form).
+   CONTROLLER-CONTRACT §8: the `host_libraries` manifest key (§5.6). The
+   broker classes already exist.
+2. **Server:**
+   - store Radio (`ohscore/server/`, shared with NB's store form);
+   - the platform (Dock360 edition): the `hostlib.*` helper operations,
+     quadlet mounts and the Optional libraries page, owned by the platform
+     session.
 3. **Fake:** `fakeshack.py` fixtures. The Dock360 fakebox: n/a (it serves
    the QO-100 WB API).
 4. **Android, including TV:** n/a for M1. The mode path's `events` shape is
@@ -994,11 +1224,12 @@ beyond the unchanged mode path.
    - ohs-libs 0.2.0, cut by its owner;
    - NB and Radio desktop, cut by the NB session (GUIDE §6: "The NB
      session also cuts Radio releases");
-   - store Radio.
+   - the platform release with host libraries, **before** store Radio;
+   - store Radio, which can now go on a public feed (§6.3).
 
    VERSION files move only at release (CLAUDE.md).
 
-### 8.5 Milestones 2-4 in outline
+### 8.5 Milestones 2-5 in outline
 
 **M2: the amateur extras.**
 
@@ -1017,7 +1248,7 @@ Also in M2:
 
 - Remote's generic Decoders screen (Android, then Apple when its Radio
   kind exists);
-- the store RSPdx moved to the direct API.
+- `fdk-aac` added to the host-library allow-list, if §10 A allows it.
 
 **Riskiest item:** fixed sessions against a moving span. Radio's span
 follows the dial, so every background session goes `outside` whenever the
@@ -1077,13 +1308,46 @@ there is no setting to decode it.
 **Riskiest item:** the voice path is the one part we can neither ship
 nor test with the real library in CI.
 
-- mbelib has no Debian package, so every user builds it.
+- mbelib has no Debian package, so every desktop user builds it, and a
+  controller has no voice at all unless §10 B allows an exception.
 - Its AMBE+2 quality is uneven **[guess]**.
 - Our CI can only use a stand-in library with the same ABI.
 
 The probe (§5.3) and the "everything but voice works" rule must carry the
 product. The legal note for non-amateur services (public safety, business
 radio) also has to be settled: §9.3.
+
+**M5: CW in Rust** (Brian, 22/10/2026). A port of ohs-libs `shack_cw`:
+
+- the classic engine;
+- the neural engine's inference (the causal TCN and CTC, with weights
+  exported from the existing Python training in `tools/cw_neural`, which
+  stays Python);
+- the language-model beam search;
+- the skimmer's tracking and its callsign rules.
+
+All of it sits behind the same `Decoder` trait, so the skimmer could leave
+its child process for the host's threads.
+
+**`shack_cw` stays the live decoder until the port beats it** on the
+benchmarks that already exist:
+
+- the decoder bench's 136 clips and beacon CER;
+- the KiwiSDR corpus;
+- `shack_cw.skim.recovery` per call;
+- `tools/skim_eval.py`'s replayed spot rule on the 57 RBN-labelled
+  recordings;
+- held-out real validation (`tools/cw_neural/realval.py`).
+
+The GUIDE §5 CW entries say why only real recordings count. Then Radio,
+Icom and Flex switch together, and `shack_cw`'s decoders retire.
+
+**Riskiest item:** the neural engine's equivalence. Training stays in
+Python while inference moves to Rust, so every checkpoint must give the
+same outputs in both, to within float tolerance. The LM's commit
+behaviour, measured to the output (GUIDE §5: "Commit beams output by
+output"), must survive the port exactly. A test runs both on
+`tools/cw_lm/dump.py`'s saved network outputs and compares the text.
 
 ## 9. Licensing
 
@@ -1129,7 +1393,7 @@ before porting (**[verify]**): GitHub says "GPL-2.0" for both `-only` and
 | faad2 | AAC patents. Its GPL-2.0-or-later licence is compatible; the patents are the problem. |
 | libfdk-aac | AAC patents, and its own licence, GPL-incompatible as Debian reads it **[guess]** |
 | mbelib, mbelib-neo | AMBE/IMBE patents. mbelib's own README carries a "PATENT NOTICE". |
-| codec2 | not encumbered (LGPL-2.1). Use-if-installed is Brian's choice for now; §10 Q1 asks whether "shipped today" may continue. |
+| codec2 | not encumbered (LGPL-2.1). It is the exception: we keep shipping it (Brian, 22/10/2026), and the loader still treats it as optional. |
 
 **The rule that matters most:** the patents cover the **algorithms**, not
 any one program's code. So we never port or re-implement an AAC, AMBE or
@@ -1148,7 +1412,7 @@ note says so.
 - **"Non-commercial" or unlicensed code and samples.** Samples go to
   iqlib only, never into code or the repositories.
 - **The SDRplay API.** It is proprietary: it is dlopen'd from the user's
-  own install on the desktop, and the store image question stays §10 Q3.
+  own install on every form, and on a controller a staged host library (§6.3).
 - **Receiving others' traffic.** **[guess, not legal advice]** In the UK,
   receiving and disclosing messages from non-broadcast services you are
   not meant to receive is an offence (WT Act 2006 s.48). That covers
@@ -1160,40 +1424,64 @@ note says so.
 
 ## 10. Questions only Brian can answer
 
-1. **codec2 in the bundles.** Windows and macOS Radio have carried
-   libcodec2 since NB 0.1.1 and HAM 0.1.2
-   (`packaging/windows/sources.txt:75`), and the store image installs
-   Debian's (Containerfile line 69). Does "use if installed" mean we stop
-   shipping it?
-   **Recommend:** keep shipping it. It is LGPL with no patent problem, and
-   stopping would silently remove FreeDV from every Windows and Mac user.
-   The loader treats it as optional, and the build check allows it by name.
-2. **How an encumbered codec reaches a controller.** A store app cannot
-   install packages (its root filesystem is read-only, with no root
-   inside). The options:
-   - (a) an administrator uploads the `.so` through Radio's own status
-     page into `/data/codecs`, where the probe checks it;
-   - (b) a named privileged platform operation installs Debian's
-     `libfaad2` on the host, and the platform binds it read-only into
-     apps that declare it.
+Brian answered the first four on 22/10/2026 (top of this file). His
+answers on host libraries and on the SDRplay API leave three things only
+he can decide.
 
-   **Recommend (a)** for M3: no platform change, and it is plainly the
-   user's own act. Consider (b) only if (a) proves too awkward.
-3. **SDRplay's API in a public store image.** Today the image carries the
-   API, so store Radio has gone only to Brian's own controllers by
-   catalogue upload (GUIDE §5; HANDOVER 13/10).
-   **Recommend:** ask SDRplay for written permission to redistribute
-   inside the image. Until then, M1's store Radio stays on catalogue
-   uploads to Brian's controllers, and public feeds wait. The desktop
-   never bundles it, so desktop M1 is not blocked.
-4. **Does "all decoders in Rust" include the CW decoder?**
-   `shack_cw`'s classic and neural engines are Python and numpy, measured
-   on real bands and shared by Radio, Icom and Flex (GUIDE §5, the CW
-   entries).
-   **Recommend:** no, not in M1-M4. Keep it, register it in the catalogue
-   through the Python adapter, and revisit only if CPU on the N150 forces
-   it. The same applies to `shack_packet`'s APRS, which Brian already
-   chose to keep.
+**A. fdk-aac on a controller means enabling Debian's non-free on the
+host.**
+
+`libfdk-aac2t64` is in non-free (trixie 2.0.3-1), and it is the only
+route to xHE-AAC, which some DRM stations use. faad2, in main, covers
+DAB+ and the rest of DRM.
+
+The op would add one non-free source, pinned so that only that one
+package can come from it, and take it away again on remove (§5.6).
+
+**Recommend:** allow it, pinned exactly so, installed only when an
+administrator presses Install. Without it, DRM's xHE-AAC stations are
+silent on controllers and play only on desktops where the user installed
+fdk-aac.
+
+**B. mbelib on a controller.**
+
+It is not packaged in Debian at all, so under "host package only" a
+controller has no AMBE/IMBE voice: DMR, D-STAR, YSF, P25 and NXDN show
+calls, IDs and data, but are silent. The alternatives:
+
+- an op that builds mbelib on the host from a pinned source tarball when
+  an administrator asks;
+- an exception allowing an administrator to supply a built `libmbe.so`,
+  checked by the probe.
+
+The first means our platform compiles patented code on the user's
+machine. The second is the upload you ruled out for codecs.
+
+**Recommend:** neither. Voice stays desktop-only, where the user builds
+mbelib themselves as OnAir's users do. Revisit only if a distribution
+ever packages it. This does not touch M1-M3.
+
+**C. How a controller gets SDRplay's installer.**
+
+The op would do two things:
+
+- download SDRplay's published installer from sdrplay.com when an
+  administrator presses Install, **after the page shows SDRplay's licence
+  and the administrator accepts it**, then check it against our pinned
+  hashes and unpack it without running it;
+- on a controller with no route out, accept that same file from the
+  administrator, checked against the same hashes.
+
+Two points need your yes:
+
+- that the platform fetching the file on the administrator's behalf,
+  with the licence accepted on the page, counts as the user installing it;
+- that a hash-pinned vendor installer is not the "admin upload" you ruled
+  out for codecs.
+
+**Recommend:** yes to both. The alternative, an administrator running
+SDRplay's installer on the host by hand, starts a host service that
+fights the container's service for the radio, and needs a shell.
 
 ## 11. What this plan guessed (to check first)
 
@@ -1209,3 +1497,9 @@ note says so.
   still being on the air.
 - The licences marked **[verify]** in §9.1. The legal notes in §9.3 are
   not legal advice.
+- SDRplay's installer layout on Linux, and its unpacked file set being
+  enough for the service in the container once it comes from
+  `/opt/hostlibs` rather than `/usr/local` (§6.3).
+- That one pinned non-free source can deliver `libfdk-aac2t64` alone,
+  with nothing else from non-free ever installable through it (§5.6, §10
+  A). Not tried on a controller.
