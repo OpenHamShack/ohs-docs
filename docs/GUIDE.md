@@ -832,6 +832,18 @@ rather than skipping it.
     beta.3: 44 % of a core at 64 busy channels, 72 % at 256 (beta.1
     34 % and 93 %); the box's own 20 m capture replayed through each
     image: beta.1 4 valid spots at 23 %, beta.3 7 at 32 %.
+- **ohs-box is an Intel i5-9400T (6 cores), not an N150** (read 13/10,
+  openhamshack docs/CW-SKIMMER-PLAN.md §2.2). A CPU figure measured there
+  says nothing exact about the N150 the beta targets: measure in the app's
+  image with `--cpus=1` on an N150 before calling a budget met.
+- **Before porting from another SDR project, read each file's licence
+  header, not GitHub's summary.** GitHub reports "GPL-2.0" for both
+  `-only` and `-or-later`, and only `-or-later` can join our
+  GPL-3.0-or-later code. DSD's D-STAR files (`dstar_header.c/h`, `fcs.h`,
+  `descramble.h`) are GPL-2.0-only by its `COPYRIGHT` (checked
+  22/10/2026). And AAC, AMBE and IMBE are never ported from any source,
+  permissive ones included: the patents are on the algorithm, so only a
+  library the user installed may decode them (RADIO-SDR-PLAN.md §9).
 - **Getting at a store app's API on ohs-box from a shell, read-only:**
   `podman exec` into the app's container (as `dock360`,
   `XDG_RUNTIME_DIR=/run/user/987`) and call `127.0.0.1:$SHACK_PORT` with
@@ -1217,6 +1229,9 @@ rather than skipping it.
 ## 7. Where things are written down
 
 - **The plan:** [PLATFORM-PLAN.md](PLATFORM-PLAN.md).
+- **Radio as a full SDR receiver** (Rust decoders in ohs-libs `shack_sdr`,
+  the runtime codec loader, Milestones 1-4):
+  [RADIO-SDR-PLAN.md](RADIO-SDR-PLAN.md).
 - **The latest handover:** [../HANDOVER.md](../HANDOVER.md).
 - **Per-repo detail:**
   - `~/openhamshack/docs/next-session.md` and `HANDOVER.md`
