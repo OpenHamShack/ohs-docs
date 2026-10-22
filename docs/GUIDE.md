@@ -201,6 +201,18 @@ rather than skipping it.
   the last run decides) and `-j ${SUITE_JOBS:-1}`. A module red three times
   is real. Keep host names out of comments: `test_source_site` runs the
   source scrub on the tree, so a comment naming shack fails the release.
+- **A closed Qt window is never freed, and a stopped socket server's
+  accept thread never ends.** (openhamshack-nb, 22/10/2026.) The NB/Radio
+  one-process suite stopped finishing because every window an earlier test
+  had opened was still alive: `close()` only hides it, and a lambda PyQt
+  holds from C++ (BaseWindow.showEvent's screenChanged hook) pins it, so the
+  collector never frees it either - and each new window's
+  `QApplication.setStyleSheet` repolishes all of them. `tests/conftest.py`
+  now destroys (deleteLater + deferred deletes) every window a test leaves
+  and gives back each module's memory; write a new UI test the same way
+  and nothing more is needed. Separately, on Linux closing a listening
+  socket does not wake a thread blocked in `accept()`: `shutdown()` it
+  first (CivSim and RigctldSim leaked one thread per test until then).
 - **Packet Radio: what the first build found (18/10/2026, shack_packet).**
   - *numpy FFT page-faults itself slow on Linux.* In some processes glibc
     returned and re-faulted the FFT's buffers ~42,000 times a second, and
