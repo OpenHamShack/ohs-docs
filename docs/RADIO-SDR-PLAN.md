@@ -48,6 +48,25 @@ Brian's answers to this plan's first four questions (22/10/2026):
    on the existing CW benchmarks. Icom and Flex switch when it does.
    M1 starts now as designed.
 
+And his answers to the three that followed (22/10/2026), now in §5.6 and
+§6.3:
+
+- **fdk-aac on a controller: yes.** A pinned Debian non-free source,
+  limited to that one package, added only when an administrator installs
+  it and removed on uninstall.
+- **mbelib on a controller: build it on the host.**
+  - The platform builds the ISC-licensed upstream (szechyjs/mbelib) from
+    a pinned commit when an administrator asks.
+  - The fetch and the build run as an unprivileged throwaway user.
+  - Root only copies the result into the staged folder and checks it.
+- **SDRplay's installer: yes to both routes.**
+  - Online: downloaded from sdrplay.com after the administrator accepts
+    SDRplay's licence on the page.
+  - Offline: supplied by the administrator.
+  - Either way it is checked against pinned hashes.
+
+ohs-beta's review of §5.6 and §6.3 (22/10/2026) is folded in too.
+
 ## 0. The decisions, in one place
 
 | # | Question | Decision (reasons in the section) |
@@ -55,13 +74,13 @@ Brian's answers to this plan's first four questions (22/10/2026):
 | 1 | Where the new Rust lives | A new crate **`shack_sdr`** in `~/ohs-libs/rust/shack_sdr`. It is one mixed Rust+Python wheel, `shack-sdr`. It is not called `ohssdr`: the brand kit forbids those initials as a code prefix. It does not go inside ohsdigi, and it does not go in openhamshack-nb (§2). |
 | 2 | DSP pipeline | M1 adds **no new channeliser**. The engine's existing FFT filter bank cuts one channel for each decoder session. Rust worker threads decode with the GIL released, and Python polls for the results. The bank moves into Rust later, as the one channeliser for every app (§3). |
 | 3 | Decoder interface | One Rust trait (`Decoder`) and one Python face (`shack_sdr.Host` plus a catalogue). Every decoder produces five kinds of output: text, frame, image, audio and meta. They reach the desktop through a new engine feed, `decoders`, and the store through a new `api/decoders` (§4). |
-| 4 | Codec loader | Lives in `shack_sdr`. It opens libraries only by full path from a fixed list of folders on each OS, checks the version and probes each new file in a child process first. It returns codes, never sentences. It is backed by a build check that fails if an encumbered library is linked or bundled anywhere (§5). On a controller, codecs come from host packages that a named privileged operation stages and a read-only mount declared in the manifest exposes to the app (§5.6). |
-| 5 | SDR sources | Packet's own ctypes bindings for the RTL-SDR and the SDRplay API move into `shack_sdr`, so all three desktop OSes get both radios without SoapySDR. The SDRplay API is the user's own on every form: on a controller it is staged on the host like a codec, and the store image stops carrying it and SoapySDRPlay3 (§6.3). SoapySDR stays as the generic route on Linux. The Pluto is unchanged, transmit included (§6). |
+| 4 | Codec loader | Lives in `shack_sdr`. It opens libraries only by full path from a fixed list of folders on each OS, checks the version and probes each new file in a child process first. It returns codes, never sentences. It is backed by a build check that fails if an encumbered library is linked or bundled anywhere (§5). On a controller, codecs come from the host: Debian's faad2 (main) and fdk-aac (one pinned non-free source), and mbelib built from a pinned upstream by an unprivileged throwaway user. A named privileged operation stages them, the allow-list is defined once, and a read-only mount declared in the manifest exposes them to the app (§5.6). |
+| 5 | SDR sources | Packet's own ctypes bindings for the RTL-SDR and the SDRplay API move into `shack_sdr`, so all three desktop OSes get both radios without SoapySDR. The SDRplay API is the user's own on every form: on a controller it is downloaded after the administrator accepts SDRplay's licence (or supplied offline), checked against pinned hashes, unpacked by an unprivileged user and staged like a codec. The store image stops carrying it and SoapySDRPlay3, so store Radio can go on a public feed (§6.3). SoapySDR stays as the generic route on Linux. The Pluto is unchanged, transmit included (§6). |
 | 6 | Tests with no transmitter | Synthetic generators in Rust, the Python decoder kept as a reference until the Rust one beats it, and recordings in iqlib. Fixtures that are not ours stay out of the public repos (§7). |
 | 7 | The first decoder | **RTTY**, both as the mode decoder and as fixed-frequency sessions independent of the dial (§8.2). |
 | 8 | Licensing | Read and port from GPL-3.0-compatible sources, with credit. AAC, AMBE and IMBE are only ever loaded at run time, never ported, even from permissively licensed code (§9). |
 
-Brian's answers to the first questions are above; what is still open is in §10.
+Brian's answers to every question this plan raised are above; §10 records that none is open.
 
 ## 1. Where Radio stands today (what this builds on)
 
@@ -559,8 +578,8 @@ Shapes:
 |---|---|---|---|---|
 | codec2 | FreeDV (today), M17 later | `libcodec2.so.1.2`, `libcodec2.so.1.0`; `libcodec2.dll`, `codec2.dll`; `libcodec2.dylib`, `libcodec2.1.2.dylib` | LGPL-2.1, no patent problem | **Yes, and we keep doing so** (Brian, 22/10): in the Windows and macOS bundles (`packaging/windows/THIRD-PARTY.txt:84`, `packaging/macos/THIRD-PARTY.txt:80`) and Debian's in the store image (Containerfile line 69). |
 | faad2 | DAB+, DRM (AAC, HE-AAC v1/v2, 960-sample frames) | `libfaad.so.2`; `libfaad-2.dll`, `libfaad2.dll`, `libfaad.dll`; `libfaad.2.dylib`, `libfaad.dylib` | GPL-2.0-or-later (`libfaad/decoder.c` header, checked 22/10/2026); AAC patents | **never**: user-installed only. Debian 13 main has `libfaad2` 2.11.2 (apt-cache on shack, 22/10). |
-| fdk-aac | DAB+, DRM including xHE-AAC | `libfdk-aac.so.2`; `libfdk-aac-2.dll`, `libfdk-aac.dll`; `libfdk-aac.2.dylib` | Fraunhofer's own licence, which names patent licensing through Via Licensing (`NOTICE`, checked 22/10). **[guess]** GPL-incompatible as Debian and the FSF read it; not in Debian main. | **never** |
-| mbelib (or mbelib-neo) | DMR, D-STAR, YSF, P25, NXDN voice | `libmbe.so.1`, `libmbe.so`; `libmbe.dll`, `mbelib.dll`; `libmbe.dylib` | mbelib: ISC (its `COPYRIGHT`) with its own patent notice (README "PATENT NOTICE"). mbelib-neo: GPL-2.0-or-later (OnAir's README). The AMBE/IMBE patents are the problem. **[guess]** not packaged in Debian 13 (no candidate on shack). | **never** |
+| fdk-aac | DAB+, DRM including xHE-AAC | `libfdk-aac.so.2`; `libfdk-aac-2.dll`, `libfdk-aac.dll`; `libfdk-aac.2.dylib` | Fraunhofer's own licence, which names patent licensing through Via Licensing (`NOTICE`, checked 22/10). **[guess]** GPL-incompatible as Debian and the FSF read it. In Debian non-free (`libfdk-aac2t64` 2.0.3-1, trixie). | **never**. On a controller: §5.6. |
+| mbelib (or mbelib-neo) | DMR, D-STAR, YSF, P25, NXDN voice | `libmbe.so.1`, `libmbe.so`; `libmbe.dll`, `mbelib.dll`; `libmbe.dylib` | mbelib: ISC (its `COPYRIGHT`) with its own patent notice (README "PATENT NOTICE"). mbelib-neo: GPL-2.0-or-later (OnAir's README). The AMBE/IMBE patents are the problem. Not packaged in Debian at all (sources.debian.org, 22/10). | **never**. On a controller it is built on the host: §5.6. |
 
 The same rule covers anything later found to be encumbered (HDC, DRA).
 Those are out of this plan.
@@ -697,10 +716,15 @@ So the check goes in green and stays that way.
 
 ### 5.6 Codecs, and the SDRplay API, on a controller: host libraries
 
-Brian, 22/10/2026: a controller gets an encumbered codec from a **host
-package** that the platform installs, never from an admin's upload. The
-SDRplay API arrives the same way (§6.3). The pieces, in the Dock360
-edition, are below.
+Brian, 22/10/2026:
+
+- A controller gets an encumbered codec from the **host**, never from an
+  admin's upload of a library. The platform installs a Debian package, or
+  builds from a pinned upstream source where Debian has none.
+- The SDRplay API arrives the same way (§6.3).
+
+ohs-beta, which cuts the edition for the beta, reviewed this section on
+22/10. Its six points are folded in below and marked (review 1-6).
 
 **What Dock360 allows today.** Checked on dock360
 `feature/ohs-edition-030-c`:
@@ -711,98 +735,218 @@ edition, are below.
   (`src/dock360/manifest.py` `VolumeSpec`; `src/dock360/quadlet.py` writes
   `Volume=<data_dir>/<name>:<path>:<mode>`).
 - `runtime.devices` takes only `/dev` paths. `usb_bus` binds
-  `/dev/bus/usb` (`quadlet.py`).
+  `/dev/bus/usb`.
 - So there is **no declared way to mount a host file or directory** into
   an app.
 - `runtime.extra_args` is passed to podman verbatim, unvalidated
-  (`manifest.py` `RuntimeSpec.parse`; `quadlet.py` `PodmanArgs={arg}`), so
-  a manifest *could* bind any host path. We must not build on that.
-  Separately from this plan, the platform owner should consider refusing
-  `extra_args` in signed `shack-` modules: as it stands, any one of them
-  can mount anything.
+  (`manifest.py` `RuntimeSpec.parse`; `quadlet.py` around line 221,
+  `PodmanArgs={arg}`), so a manifest could bind any host path.
+  **ohs-beta will make the edition refuse `extra_args` outright in signed
+  `shack-` modules.** That is a separate platform item, already queued in
+  HANDOVER, and nothing here builds on `extra_args`.
 
-**1. The named privileged operations** (`src/dock360_helper/ops/hostlib.py`):
+**1. One allow-list, defined once (review 3).** The table of host
+libraries lives in one data file in the Dock360 edition,
+`src/dock360/shack/hostlibs.json`.
+
+- **Who reads it:**
+  - the helper, to decide what it may install;
+  - the manifest validator, to decide which `host_libraries` names are
+    valid;
+  - the admin page.
+- **Neither copy can drift**, because there is only one. A test loads it
+  through both the helper and the validator and checks that they agree.
+- **Each entry fixes:**
+  - `name`;
+  - `kind`: `apt`, `vendor-installer` or `source-build`;
+  - for `apt`: the Debian package, its archive area, and for non-free the
+    pinned source definition;
+  - for `vendor-installer` and `source-build`: the URL, the pinned
+    versions or commit, and each one's sha256;
+  - the file patterns that may be staged;
+  - the licence and patent sentence the page shows;
+  - whether the page must collect a licence acceptance first.
+- **Nothing in a request** but the name, and for SDRplay a version chosen
+  from the entry, ever reaches a command line. That is `apt.py`'s rule.
+
+**2. The named privileged operations** (`src/dock360_helper/ops/hostlib.py`):
 
 | Verb | Arguments (validated) | Does |
 |---|---|---|
-| `hostlib.list` | none | for each allow-listed name: installed or not, version, staged files with sha256, when, by whom |
-| `hostlib.install` | `{"name": <one of the allow-list>}`, plus for `sdrplay-api` only `{"version": <one of its pinned versions>}` | installs and stages that one library (below). Refused while any app is on the air (the busy gate's rule for updates). |
-| `hostlib.remove` | `{"name"}` | empties its staged folder and removes the package it installed. It never removes a package that was on the host before. |
-| `hostlib.restage` | `{"name"}` | copies the files again after an `apt.upgrade` (run by the platform after every upgrade, so the staged copy follows Debian's security updates) |
+| `hostlib.list` | none | for each allow-listed name: installed or not, version, staged files with sha256, when and by whom. Also the storage checks in point 6. |
+| `hostlib.install` | `{"name"}`; for `sdrplay-api` also `{"version"}` (one of its pinned versions) and `{"file": <path the web tier received>}` for an offline controller | installs and stages that one library (points 3-5) |
+| `hostlib.remove` | `{"name"}` | empties its staged folder, removes the package it installed and any pinned source it added. It never removes a package that was on the host before. |
+| `hostlib.restage` | `{"name"}` | stages the files again from the installed package, or rebuilds from the pinned source |
 
-- **The allow-list is code in the helper**, not data the web tier sends,
-  as `apt.py`'s fixed command lines are. Each entry fixes:
-  - the Debian package, with its archive area and component;
-  - the file patterns to stage, matched against `dpkg -L` of that package
-    only;
-  - for SDRplay, the vendor's installer URL, pinned versions and sha256.
-- **Nothing else from the request reaches a command line.**
-- **The arguments are logged** through the helper's redaction (GUIDE §5).
+- **The busy gate applies to install and remove alike (review 4).**
+  Either is refused while any app is on the air. A library vanishing
+  under a running decoder is no better than one appearing.
+- **Arguments are logged** through the helper's redaction (GUIDE §5).
+- **Every action is audited** with the administrator who asked.
 
-**2. Staging.** Each library is copied, root-owned with mode 0644, into
-`/var/lib/dock360/hostlibs/<name>/`. A `stamp.json` beside it records the
-package, version, files and hashes.
+**3. Root does as little as possible (review 1).** Anything that unpacks,
+runs or builds what came from outside the archive runs as an
+**unprivileged throwaway user**, never as root:
 
-- Files are written beside the old ones and renamed into place. The
-  folder itself is never replaced, because a bind mount holds the folder:
-  replacing it would leave the app looking at the old, deleted one.
-- **Why a staged copy, not a bind of `/usr/lib/<multiarch>/libfaad.so.2`.**
-  A bound file pins its inode, so after apt replaced the library the
-  container would keep the old one until a restart, and never learn it
-  had changed. A bind of all of `/usr/lib` would show the app everything
-  on the host.
+- `systemd-run --wait --pipe -p DynamicUser=yes -p PrivateTmp=yes
+  -p ProtectSystem=strict -p ProtectHome=yes -p NoNewPrivileges=yes
+  -p PrivateNetwork=<yes once the download is done> -p RuntimeMaxSec=600`;
+- its output goes to a private directory the root step reads afterwards.
 
-**3. The manifest key.** The `openhamshack:` block gains
-`host_libraries: [sdrplay-api, faad2, fdk-aac]`.
+That matters because makeself's `--noexec --target` **still runs the
+archive's own shell header** to unpack it, so "we only unpack" is not
+"we run nothing of theirs".
 
-- Validation is strict: each name must be on the edition's allow-list, the
-  same list the helper holds.
-- For each name, quadlet writes
-  `Volume=/var/lib/dock360/hostlibs/<name>:/opt/hostlibs/<name>:ro`, and
-  sets `SHACK_HOSTLIBS=/opt/hostlibs` in the container's environment.
-- The platform creates every declared folder, empty, when the module is
-  installed. The mount therefore exists from the first start, and a
-  library installed later appears inside the running container with no
-  restart. The loader's "Look again" finds it.
-- `SPEC_VERSION` rises (CONTROLLER-CONTRACT §8's rule for manifest
-  additions).
+**The root step** only:
 
-**4. How an administrator triggers it.**
+- copies the allow-listed files out of the private directory;
+- checks every one against the hashes it will write to `stamp.json`, and
+  checks a vendor or source file's own pinned sha256 before anything
+  unpacks it;
+- sets root ownership with mode 0644, or 0755 for the SDRplay service;
+- renames them into place.
+
+The same pattern serves:
+
+- the SDRplay installer (§6.3);
+- the mbelib build (point 5);
+- apt packages: `apt-get install` itself is root, as `apt.py`'s are, but
+  the staging that follows is the same copy-and-check.
+
+**4. Staging and the mount.**
+
+- **Where:** `/var/lib/dock360/hostlibs/<name>/`, root-owned, with a
+  `stamp.json` recording the source (package and version, installer
+  version, or upstream commit), each file's sha256, when and by whom.
+- **How:** files are written beside the old ones and renamed into place.
+  The folder itself is never replaced, because a bind mount holds the
+  folder; replacing it would leave the app looking at the old, deleted
+  one.
+- **Why a staged copy, not a bind of the package's own file:** a bound
+  file pins its inode, so after apt replaced the library the container
+  would keep the old one with nothing said. Binding all of `/usr/lib`
+  would show the app the whole host.
+- **The manifest key:** the `openhamshack:` block gains
+  `host_libraries: [sdrplay-api, faad2, fdk-aac, mbelib]`.
+  - Each name is validated against the one allow-list.
+  - quadlet writes
+    `Volume=/var/lib/dock360/hostlibs/<name>:/opt/hostlibs/<name>:ro`
+    for each, and sets `SHACK_HOSTLIBS=/opt/hostlibs`.
+  - The platform creates every declared folder, empty, at module install.
+    The mount exists from the first start, and a library installed later
+    appears inside the running container; the loader's "Look again" finds
+    it.
+- **Older controllers (review 5):** `SPEC_VERSION` rises (CONTROLLER-CONTRACT
+  §8's rule). A module that declares `host_libraries` on a platform whose
+  `SPEC_VERSION` predates the key is **refused at install**, with "This
+  app needs controller <x.y> or later". It is never installed with the
+  key silently ignored, which would give an app that cannot see its
+  libraries and says only "not installed".
+
+**5. The four libraries** (Debian 13 is the controller's: podman 5.4 on
+Debian 13 per `quadlet.py`'s comment. Packaging checked 22/10/2026 on
+packages.debian.org and sources.debian.org.)
+
+| Name | Source | How `hostlib.install` gets it |
+|---|---|---|
+| `faad2` | Debian **main**: `libfaad2` 2.11.2-1 (trixie; 2.11.4 in forky and sid). Licence GPL-2.0-or-later; AAC patents. | `apt-get install libfaad2`, then stage `libfaad.so.2*`. Covers DAB+ and DRM's AAC and HE-AAC, but not xHE-AAC. |
+| `fdk-aac` | Debian **non-free**: `libfdk-aac2t64` 2.0.3-1 (trixie). Fraunhofer's own licence; AAC patents. | **Decided (Brian, 22/10/2026):** a pinned non-free source limited to this one package, added only when an administrator installs it and removed on uninstall. Details below the table. It is the only route to xHE-AAC (DRM). |
+| `mbelib` | **Not packaged in Debian** (no source package by that name or `libmbe`). Upstream: **github.com/szechyjs/mbelib**, **ISC licence** (its `COPYRIGHT`). The patent problem is the AMBE/IMBE algorithm, which is why it is never bundled; its README carries its own "PATENT NOTICE". | **Decided (Brian, 22/10/2026): built on the host from a pinned upstream.** Details below the table. |
+| `sdrplay-api` | not packaged by anyone; SDRplay publishes a makeself `.run` installer | **Decided (Brian, 22/10/2026):** §6.3 |
+
+**fdk-aac's pinned source.** The op writes two files:
+
+- `/etc/apt/sources.list.d/openhamshack-fdk-aac.sources`: the non-free
+  component of the controller's own suite only;
+- `/etc/apt/preferences.d/openhamshack-fdk-aac`: pins everything from
+  that source to -1 and `libfdk-aac2t64` alone to 500.
+
+It then refreshes the index and installs. `hostlib.remove fdk-aac` purges
+the package and deletes both files.
+
+- **A test** in a Debian 13 container checks that another non-free
+  package cannot be installed through the pin. **[guess]** that
+  `apt-get install` honours -1 for every other non-free package; to be
+  proved by that test.
+
+**mbelib's build:**
+
+- **The pin:** tag v1.3.0, commit `e2d84c12b41419b5a051d16b39e4510b4b552065`.
+  The GitHub archive of that commit had sha256
+  `5f89591d14f9d0f31a4243685b1200ccdae4d7581d295a9c971c540696e973c9`,
+  fetched 22/10/2026. GitHub's archives are not promised to be
+  byte-stable, so the build fetches the commit with git and checks its id
+  and a sha256 over the sorted tree. The archive hash is only a fast first
+  check. The five commits on master after v1.3.0 touch only packaging and
+  MSVC: 1b39cc9, 27b3f1b, f8ef717, ac749b0, 9a04ed5.
+- **The build needs** `cmake`, `make` and `gcc`. The op installs them
+  through apt, which is root, and records them in `stamp.json` so remove
+  takes them away again if they were not there before.
+- **The fetch and the build** (`cmake -DCMAKE_BUILD_TYPE=Release`, target
+  `mbe-shared`) run as the throwaway user (point 3): network for the
+  fetch only, none for the build.
+- **The root step** copies `libmbe.so.1*` out, checks it, and stages it.
+- **`hostlib.restage mbelib` rebuilds** after a toolchain or libc
+  upgrade.
+- The loader's child-process probe (§5.3) proves the result before Radio
+  uses it.
+- **The fork mbelib-neo** (github.com/arancormonk/mbelib-neo,
+  GPL-2.0-or-later per OnAir's README and GitHub, active in October 2026)
+  is an alternative upstream if szechyjs/mbelib's 2019 code proves too
+  weak. It is not on the allow-list until it has been measured.
+
+**6. Restaging, and whether the mount allows execution.**
+
+- **After any package change, not only the platform's `apt.upgrade`
+  (review 2).** A `DPkg::Post-Invoke` hook
+  (`/etc/apt/apt.conf.d/80openhamshack-hostlibs`) calls `hostlib.restage`
+  for each staged `apt` library whose installed package version no longer
+  matches its `stamp.json`.
+  - That covers unattended security upgrades and an administrator's own
+    `apt` too.
+  - A daily timer does the same cheap comparison, in case a hook was
+    skipped.
+  - The `source-build` mbelib is rebuilt when the libc or gcc version in
+    its stamp changes.
+- **`hostlib.list` checks the storage (review 6):**
+  - that `/var/lib/dock360/hostlibs` is not on a `noexec` mount (from
+    `findmnt`);
+  - that the container's bind keeps exec. `sdrplay_apiService` runs from
+    `/opt/hostlibs/sdrplay-api/` inside the container, so the mount must
+    not carry `noexec`; the quadlet test checks the generated options.
+
+  A failure shows on the admin page and in `stamp.json`'s status, and the
+  app's codec status reads `refused` with `noexec`, not an unexplained
+  failed start.
+
+**7. How an administrator triggers it.**
 
 - **Where:** the controller's admin interface gains an **Optional
-  libraries** section (on the Hardware page, or each app's page).
-  - It lists what the installed apps declared in `host_libraries`, each
-    with its state from `hostlib.list`, what it is for ("DAB+ and DRM
-    sound in Radio"), and a short licence and patent note.
-  - Install and Remove buttons are admin-only (`403 not_admin`
-    otherwise; CONTROLLER-CONTRACT §9) and audited.
+  libraries** section. It lists what the installed apps declared, each
+  with:
+  - its state from `hostlib.list`;
+  - what it is for ("DAB+ and DRM sound in Radio");
+  - the licence and patent sentence from the allow-list;
+  - for SDRplay, its licence to accept (§6.3).
+- **Install and Remove** are admin-only (`403 not_admin` otherwise,
+  CONTROLLER-CONTRACT §9) and audited.
+- **Long jobs** (apt, the mbelib build) run detached and the page follows
+  their log, as `apt.upgrade` does.
 - **The app cannot trigger root work.** Radio, and so a stolen app token,
   can only show "Ask your controller's administrator to install faad2
-  (Controller › Optional libraries)". Radio's `api/decoders` `codecs`
-  entries carry `"host": true` and the state, so Remote can say the same.
-- **Later:** the same three verbs behind admin-only routes under
+  (Controller › Optional libraries)". `api/decoders`' `codecs` entries
+  carry `"host": true` and the state, so Remote can say the same.
+- **Later:** the same verbs behind admin-only routes under
   `/api/shack/v1/hostlibs` for a Remote admin screen. Not in M1.
 
-**5. What each library is on Debian 13** (the controller's: podman 5.4 on
-Debian 13 per `quadlet.py`'s comment). Checked 22/10/2026 on
-packages.debian.org and sources.debian.org:
-
-| Name | Debian | Result on a controller |
-|---|---|---|
-| `faad2` | `libfaad2` 2.11.2-1 in **main** (trixie; 2.11.4 in forky and sid) | `hostlib.install faad2` is plain `apt-get install libfaad2`. Covers DAB+ and DRM's plain AAC and HE-AAC; not xHE-AAC. |
-| `fdk-aac` | `libfdk-aac2t64` 2.0.3-1 in **non-free** (trixie) | needs the non-free component, which a controller does not have. The op adds one pinned source (`/etc/apt/sources.list.d/openhamshack-fdk-aac.sources`, non-free only, with an apt preference pinning everything from it to -1 except `libfdk-aac2t64`), installs, and removes both again on `hostlib.remove`. It is the only route to xHE-AAC (DRM). **Needs Brian:** §10 A. |
-| `mbelib` | **not packaged** in Debian at all (no source package by that name or `libmbe` on sources.debian.org or packages.debian.org) | **not available on a controller** under this rule. DMR, D-STAR, YSF, P25 and NXDN decode everything but voice there, and the UI says so. A desktop user installs it as OnAir's users do. **Needs Brian:** §10 B, whether to allow an exception. |
-| `codec2` | in the image already (`libcodec2-1.2`) | not a host library |
-| `sdrplay-api` | not packaged by anyone; SDRplay publishes a `.run` installer | §6.3 |
-
-**6. The loader, unchanged.**
+**8. The loader, unchanged.**
 
 - On a controller, step 2 of §5.2 is `/opt/hostlibs/<name>/`.
 - The child-process probe (§5.3) still runs on first sight of each file,
-  which is what catches a host library built against a different glibc
-  from the image's, if the two Debian versions ever drift apart.
+  which also catches a host library built against a different glibc from
+  the image's.
 - The build check (§5.5) still scans the image. Host libraries are never
-  in it, so it stays green.
+  in it.
 
 ## 6. Decision 5: SDR sources and the broker
 
@@ -909,28 +1053,33 @@ Brian, 22/10/2026: use if installed, everywhere.
   - So does the SoapySDRPlay3 build, which needs SDRplay's headers.
   - The image then carries only Debian packages and our own GPL code.
 
-**`hostlib.install sdrplay-api`** is the one host library without a
-Debian package.
+**`hostlib.install sdrplay-api`** (Brian, 22/10/2026: yes to both
+routes).
 
-- **The allow-list pins** SDRplay's published installer URL, the versions
-  we have tested and each one's sha256: today's `tools/vendor/sdrplay.lock`
-  hash moves there.
-- **The op:**
-  - downloads the installer;
-  - checks the hash;
-  - **unpacks it without running it** (`--noexec --target`, as the
-    Containerfile does now: the installer wants systemd and udev, and
-    running it on the host would start a second service that fights the
-    container's for the radio);
-  - stages `libsdrplay_api.so.3*`, `sdrplay_apiService` and SDRplay's
-    licence text.
-- **A controller with no route out:** the same op accepts the installer
-  file, checked against the same pinned hashes. That is SDRplay's own
+- **The allow-list entry pins** SDRplay's published installer URL, the
+  versions we have tested and each one's sha256. Today's
+  `tools/vendor/sdrplay.lock` hash moves there.
+- **Online:** the admin page shows SDRplay's licence, and the
+  administrator must accept it. Only then does the op download the
+  installer from sdrplay.com and check its hash.
+- **Offline:** the administrator supplies that same installer file, and
+  it is checked against the same pinned hashes. That is SDRplay's own
   file proved by hash, not an arbitrary library.
+- **Unpacking happens as the throwaway user, never root** (§5.6 point 3).
+  makeself's `--noexec --target` still runs the archive's shell header,
+  so even the unpack is the vendor's code. It runs with no network and a
+  private temporary directory.
+- **It is never installed.** Running the installer would install a host
+  service that fights the container's for the radio, plus systemd units
+  and udev rules.
+- **The root step** copies `libsdrplay_api.so.3*`, `sdrplay_apiService`
+  and SDRplay's licence text out, checks each against the hashes it
+  stamps, and stages them. The service is mode 0755 and needs the exec
+  check of §5.6 point 6.
 - **The udev rule:** the RSP's rule stays `udev.allow`, as today
   (GUIDE §5).
-- **Needs Brian:** §10 C. The licence acceptance and the download on the
-  administrator's behalf.
+- **The licence acceptance** is recorded in `stamp.json` with the
+  administrator and the time.
 
 **Publishing.** With the API and SoapySDRPlay3 out of the image, store
 Radio carries nothing whose redistribution is in doubt. GUIDE §5's "Brian
@@ -1030,7 +1179,11 @@ are not engaged. RTTY's Enable TX encoder is untouched.
    - the `host_libraries` manifest key;
    - the Optional libraries page;
    - allow-list entries `sdrplay-api` and `faad2`. faad2 has no user until
-     M3, but proves the apt path. `fdk-aac` waits for §10 A.
+     M3, but proves the apt path.
+   - `fdk-aac`, with its pinned non-free source, and `mbelib`, with its
+     host build, follow in M3 and M4, when something uses them. The
+     machinery they need (the throwaway-user runner, the root copy-and-check)
+     is built in M1 for SDRplay.
 4. **SDR sources:**
    - `rtlsdr` and `sdrplay` (the direct API) on all three desktop OSes and
      in store Radio;
@@ -1135,8 +1288,19 @@ beyond the unchanged mode path.
   - `host_libraries` validation and the quadlet `Volume=` lines (tested
     with `quadlet -dryrun`, as `quadlet.py`'s comments do);
   - the folders created at module install;
-  - `hostlib.restage` after `apt.upgrade`;
-  - the admin page, admin-only and audited.
+  - the single allow-list (`hostlibs.json`), read by both the helper and
+    the validator, with a test that they agree;
+  - the SDRplay installer unpacked only as a `DynamicUser` throwaway user,
+    with root copying out allow-listed, hash-checked files. A test proves
+    a file outside the patterns, or with a wrong hash, is never staged;
+  - `hostlib.restage` from the `DPkg::Post-Invoke` hook and the daily
+    timer whenever a package version leaves its stamp;
+  - the busy gate refusing both install and remove while on the air;
+  - an older controller refusing a `host_libraries` module with "needs
+    controller x.y";
+  - `hostlib.list`'s noexec check, and the bind's options allowing exec;
+  - the admin page, admin-only and audited, with SDRplay's licence
+    acceptance recorded.
   - A platform release carrying them goes **before** the Radio image
     without the API (§6.3's order). ohs-box's RSPdx works through the host
     library: a receive-only check, with Brian's approval for the session.
@@ -1248,7 +1412,8 @@ Also in M2:
 
 - Remote's generic Decoders screen (Android, then Apple when its Radio
   kind exists);
-- `fdk-aac` added to the host-library allow-list, if §10 A allows it.
+- `fdk-aac` added to the host-library allow-list, with its pinned non-free
+  source (§5.6), in time for DRM in M3.
 
 **Riskiest item:** fixed sessions against a moving span. Radio's span
 follows the dial, so every background session goes `outside` whenever the
@@ -1308,8 +1473,10 @@ there is no setting to decode it.
 **Riskiest item:** the voice path is the one part we can neither ship
 nor test with the real library in CI.
 
-- mbelib has no Debian package, so every desktop user builds it, and a
-  controller has no voice at all unless §10 B allows an exception.
+- mbelib has no Debian package. Every desktop user builds it, and a
+  controller builds it on the host from the pinned upstream (§5.6). M4
+  adds `mbelib` to the allow-list. Its build, once it reaches a
+  controller, is the first source build the platform runs.
 - Its AMBE+2 quality is uneven **[guess]**.
 - Our CI can only use a stand-in library with the same ABI.
 
@@ -1424,64 +1591,17 @@ note says so.
 
 ## 10. Questions only Brian can answer
 
-Brian answered the first four on 22/10/2026 (top of this file). His
-answers on host libraries and on the SDRplay API leave three things only
-he can decide.
+None is open. Brian answered all seven on 22/10/2026:
 
-**A. fdk-aac on a controller means enabling Debian's non-free on the
-host.**
-
-`libfdk-aac2t64` is in non-free (trixie 2.0.3-1), and it is the only
-route to xHE-AAC, which some DRM stations use. faad2, in main, covers
-DAB+ and the rest of DRM.
-
-The op would add one non-free source, pinned so that only that one
-package can come from it, and take it away again on remove (§5.6).
-
-**Recommend:** allow it, pinned exactly so, installed only when an
-administrator presses Install. Without it, DRM's xHE-AAC stations are
-silent on controllers and play only on desktops where the user installed
-fdk-aac.
-
-**B. mbelib on a controller.**
-
-It is not packaged in Debian at all, so under "host package only" a
-controller has no AMBE/IMBE voice: DMR, D-STAR, YSF, P25 and NXDN show
-calls, IDs and data, but are silent. The alternatives:
-
-- an op that builds mbelib on the host from a pinned source tarball when
-  an administrator asks;
-- an exception allowing an administrator to supply a built `libmbe.so`,
-  checked by the probe.
-
-The first means our platform compiles patented code on the user's
-machine. The second is the upload you ruled out for codecs.
-
-**Recommend:** neither. Voice stays desktop-only, where the user builds
-mbelib themselves as OnAir's users do. Revisit only if a distribution
-ever packages it. This does not touch M1-M3.
-
-**C. How a controller gets SDRplay's installer.**
-
-The op would do two things:
-
-- download SDRplay's published installer from sdrplay.com when an
-  administrator presses Install, **after the page shows SDRplay's licence
-  and the administrator accepts it**, then check it against our pinned
-  hashes and unpack it without running it;
-- on a controller with no route out, accept that same file from the
-  administrator, checked against the same hashes.
-
-Two points need your yes:
-
-- that the platform fetching the file on the administrator's behalf,
-  with the licence accepted on the page, counts as the user installing it;
-- that a hash-pinned vendor installer is not the "admin upload" you ruled
-  out for codecs.
-
-**Recommend:** yes to both. The alternative, an administrator running
-SDRplay's installer on the host by hand, starts a host service that
-fights the container's service for the radio, and needs a shell.
+| # | Question | Answer | Where |
+|---|---|---|---|
+| 1 | codec2 in the bundles | keep shipping it | §5.1 |
+| 2 | encumbered codecs on a controller | from the host, never an upload of a library | §5.6 |
+| 3 | SDRplay's API | use if installed, every form | §6.3 |
+| 4 | CW in Rust | yes, as M5; `shack_cw` stays live until beaten | §8.5 |
+| A | fdk-aac via Debian non-free | yes, one pinned source, added and removed with it | §5.6 |
+| B | mbelib on a controller | build it on the host from a pinned upstream, as an unprivileged throwaway user | §5.6 |
+| C | SDRplay's installer | download after licence acceptance, or supplied offline, both hash-checked | §6.3 |
 
 ## 11. What this plan guessed (to check first)
 
@@ -1501,5 +1621,8 @@ fights the container's service for the radio, and needs a shell.
   enough for the service in the container once it comes from
   `/opt/hostlibs` rather than `/usr/local` (§6.3).
 - That one pinned non-free source can deliver `libfdk-aac2t64` alone,
-  with nothing else from non-free ever installable through it (§5.6, §10
-  A). Not tried on a controller.
+  with nothing else from non-free ever installable through it (§5.6). Not
+  tried on a controller.
+- That makeself's shell header and mbelib's CMake build both run cleanly
+  as a `DynamicUser` with `ProtectSystem=strict` and a private temporary
+  directory (§5.6 point 3). Not tried yet.
