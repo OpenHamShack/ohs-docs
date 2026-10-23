@@ -880,10 +880,15 @@ exclusive_devices:
 | `broker_devices` | list of classes | the broker refuses claims outside it |
 | `actions`, `controller_layout` | file path in the package | validated at install against CONTROLLER-PAD.md's schema |
 | `exclusive_devices[].claim` | `settings` \| `runtime` | default `settings` (today's `claims.py` behaviour); `runtime` hands the device to the broker (§7.6) and needs `release_request` |
+| `host_libraries` | list of names | (as built, platform 2.0.0-beta.9, module spec 1.4): each name must be on the edition's allow-list (`src/dock360/shack/hostlibs.json`: `faad2`, `sdrplay-api`). Each one is mounted read-only from `/var/lib/dock360/hostlibs/<name>` at `/opt/hostlibs/<name>`, and the container gets `SHACK_HOSTLIBS=/opt/hostlibs`. The folders exist, empty, from install, so a library an administrator installs later (Station › Optional libraries, admin-only) appears without a restart. RADIO-SDR-PLAN §5.6. |
 
 Validation is strict and human-worded like the rest of `manifest.py`. The
 generated authoring prompt (`authoring.py`) gains a paragraph for the block.
 `SPEC_VERSION` rises (`manifest.py:26`).
+
+**Unknown keys (from platform 2.0.0-beta.9).** A controller refuses to install or update an app whose `openhamshack:` block uses a key it does not know, naming the key and its own version. Controllers before beta.9 **ignore** unknown keys silently, and `min_dock360` is parsed but enforced nowhere. So an app that depends on a newer key must still work, or say clearly what is missing (for `host_libraries`: no `SHACK_HOSTLIBS` means "update the controller"), on an older one.
+
+**`runtime.extra_args` is refused** (from beta.9) in any `shack-` app or any app with an `openhamshack:` block. It was written verbatim as `PodmanArgs=`, so it could mount any host path. A real need gets its own validated key.
 
 ## 9. Errors
 
