@@ -420,8 +420,10 @@ pub struct Info {                       // static, one per decoder kind: the cat
     pub bandwidth_hz: f64,              // channel it needs
     pub outputs: &'static [OutputKind],
     pub panel: Panel,                   // Text | Slots | Frames { columns } | Image | Meta | Audio: how a client shows it
-    pub params: &'static [ParamSpec],   // key, type, choices/range, default (labels are catalog keys, never text)
-    pub needs: &'static [CodecId],      // codecs it cannot work without, or that it needs only for audio
+    pub params: &'static [ParamSpec],   // key, type (number range, choice, bool, text), default (labels are catalog keys, never text)
+    pub needs: &'static [CodecId],      // codecs it cannot work without, or that it needs only for part of its output
+    pub needs_for: &'static [(CodecId, &'static [&'static str])],  // the parts that need a codec: DAB's (Faad2, ["dab+"])
+    pub min_rate_hz: f64,               // IQ below this is refused (bad_input, rate); DAB: 2.048 MS/s
 }
 
 pub trait Decoder: Send {
@@ -436,9 +438,11 @@ pub enum Output {                        // what Sink takes
     Text  { text: String, offset_hz: f32, snr_db: Option<f32> },                       // streaming characters
     Frame { kind: &'static str, fields: Fields, raw: Option<Vec<u8>> },                // a POCSAG message, an RDS group, a DMR header
     Image { event: ImageEvent },                                                       // start{w,h,format} | lines{from,rgb} | done{file}
-    Audio { pcm: Vec<f32>, rate: u32, channels: u8 },                                  // WFM, DAB+, voice (M3-M4)
+    Audio { pcm: Vec<f32>, rate: u32, channels: u8 },                                  // DAB (M3, built 23/10/2026), WFM, voice: to the audio ring, below
     Meta  { fields: Fields },                                                          // RDS PS/RT, a DAB service list, a talkgroup
 }
+// Field values are Num | Bool | Text | List | Map | Null, so a feed such as
+// DAB's service list arrives in the shape a client shows it.
 
 pub enum DecodeError {
     BadInput(Code),                      // wrong rate or kind: a bug in the caller
@@ -450,6 +454,20 @@ pub enum DecodeError {
 
 Rules that cut across:
 
+- **Sound has its own path** (built with DAB, 23/10/2026). `Output::Audio`
+  never joins the results queue, where 48 kHz stereo would crowd out text
+  and a slow poll would lose both. The host puts it in the session's
+  audio ring (`ring_s` seconds, oldest dropped and counted), and the app
+  pulls it at its own pace: `Host::audio(id, max_s, rate, channels)`,
+  converted to the app's rate and channels by a resampler whose state
+  carries across pulls. Radio takes 12 kHz mono for its ordinary audio
+  stream today, so DAB plays before the 48 kHz stereo contract change
+  (§8.5 M3). Every sound-making decoder uses this one path: WFM, FreeDV
+  and the digital voice modes when they come.
+- **Parameters change live** (`Host::configure`): checked at once against
+  the entry and by a fresh decoder (a refusal is the caller's), merged,
+  and applied by the worker before the next block. DAB's `service` is the
+  first user.
 - **No user-visible text in Rust.** Errors, reasons and labels are
   snake_case codes with parameters. The app turns them into catalog
   sentences (I18N.md rules 1 and 8).
@@ -476,7 +494,9 @@ catalogue()          # [{"id", "family", "inputs", "rateHz", "bandwidthHz", "out
 sid = host.start("rtty", params={"baud": 45.45, "shift": 170, "reverse": False}, input="iq", rate=12_000)
 host.feed(sid, samples, t0, index)      # numpy complex64 or float32, read in place; never blocks
 host.poll(max_items=500)                # [{"session", "rev", "t", "type", ...}, ...]; never blocks
-host.status(sid) / host.stats()         # state, why (a code), counters, cpu share
+host.status(sid) / host.stats()         # state, why (a code), counters, cpu share; status()["meta"]: the latest meta
+host.configure(sid, {"service": "C221"})          # live (built 23/10/2026)
+host.audio(sid, max_s=1.0, rate=12_000, channels=1)  # [{"t", "rate", "channels", "pcm"}]: the session's sound
 host.reset(sid); host.stop(sid); host.close()
 codecs.status(rescan=False)             # §5
 ```
@@ -549,9 +569,20 @@ Shapes:
 {"kind": "decoder", "session": "ds_1b77", "rev": 9, "t": ..., "type": "meta", "fields": {"ps": "...", "pi": "C201"}}
 {"kind": "decoder", "session": "ds_3f2a", "rev": 814, "t": ..., "type": "state", "state": "budget", "why": "cpu_budget"}
 
-{"id": "faad2", "for": ["dabplus", "drm"], "state": "missing", "path": null, "version": null, "why": "not_found"}
+{"id": "faad2", "for": ["dab", "drm"], "state": "missing", "path": null, "version": null, "why": "not_found"}
 ```
 
+- **Partly available** (built with DAB, 23/10/2026). Every catalogue
+  entry carries `needsFor`, `partial` and `missing`. A codec needed by
+  only part of a decoder (`needsFor: {"faad2": ["dab+"]}`) leaves the entry
+  `available` with `partial: true, missing: ["faad2"]`: a `dab` session
+  starts, lists the ensemble and plays old DAB, and only a DAB+ service
+  chosen says `needs_codec:faad2`. So the server answers `409
+  decoder_unavailable` only for a codec in `needs` and not in `needsFor`.
+  (RADIO-LISTEN-CONTRACT §3 expected the 409 for `dab`; with old DAB in
+  our own Rust it no longer applies.)
+- `POST api/decoders/sessions/{id} {"params": {...}}` changes a session's
+  parameters live (`Host.configure`): `400 bad_params` on a refusal.
 - `state` is one of `starting`, `running`, `nosignal`, `synced`,
   `outside`, `budget`, `error` or `stopped`. `why` is a code; the server
   sends the sentence from its catalog as `whyText`, and clients prefer
@@ -577,7 +608,7 @@ Shapes:
 | Codec | For | Library names tried | Licence and problem | May we ship it? |
 |---|---|---|---|---|
 | codec2 | FreeDV (today), M17 later | `libcodec2.so.1.2`, `libcodec2.so.1.0`; `libcodec2.dll`, `codec2.dll`; `libcodec2.dylib`, `libcodec2.1.2.dylib` | LGPL-2.1, no patent problem | **Yes, and we keep doing so** (Brian, 22/10): in the Windows and macOS bundles (`packaging/windows/THIRD-PARTY.txt:84`, `packaging/macos/THIRD-PARTY.txt:80`) and Debian's in the store image (Containerfile line 69). |
-| faad2 | DAB+, DRM (AAC, HE-AAC v1/v2, 960-sample frames) | `libfaad.so.2`; `libfaad-2.dll`, `libfaad2.dll`, `libfaad.dll`; `libfaad.2.dylib`, `libfaad.dylib` | GPL-2.0-or-later (`libfaad/decoder.c` header, checked 22/10/2026); AAC patents | **never**: user-installed only. Debian 13 main has `libfaad2` 2.11.2 (apt-cache on shack, 22/10). |
+| faad2 | DAB's DAB+ services, DRM (AAC, HE-AAC v1/v2, 960-sample frames) | `libfaad.so.2`; `libfaad-2.dll`, `libfaad2.dll`, `libfaad.dll`; `libfaad.2.dylib`, `libfaad.dylib` | GPL-2.0-or-later (`libfaad/decoder.c` header, checked 22/10/2026); AAC patents | **never**: user-installed only. Debian 13 main has `libfaad2` 2.11.2 (apt-cache on shack, 22/10). |
 | fdk-aac | DAB+, DRM including xHE-AAC | `libfdk-aac.so.2`; `libfdk-aac-2.dll`, `libfdk-aac.dll`; `libfdk-aac.2.dylib` | Fraunhofer's own licence, which names patent licensing through Via Licensing (`NOTICE`, checked 22/10). **[guess]** GPL-incompatible as Debian and the FSF read it. In Debian non-free (`libfdk-aac2t64` 2.0.3-1, trixie). | **never**. On a controller: §5.6. |
 | mbelib (or mbelib-neo) | DMR, D-STAR, YSF, P25, NXDN voice | `libmbe.so.1`, `libmbe.so`; `libmbe.dll`, `mbelib.dll`; `libmbe.dylib` | mbelib: ISC (its `COPYRIGHT`) with its own patent notice (README "PATENT NOTICE"). mbelib-neo: GPL-2.0-or-later (OnAir's README). The AMBE/IMBE patents are the problem. Not packaged in Debian at all (sources.debian.org, 22/10). | **never**. On a controller it is built on the host: §5.6. |
 
@@ -1431,8 +1462,27 @@ That choice reaches into the engine's device model.
   75 µs de-emphasis by region, 1187.5 bit/s RDS. Read `redsea` (MIT) for
   RDS.
 - **Synchronous AM.**
-- **DAB+:** 2.048 MS/s, Mode I OFDM, FIC and MSC, RS(120,110) on the
-  superframe, audio through faad2 or fdk-aac.
+- **DAB and DAB+: built 23/10/2026, brought forward for Radio (Brian),
+  ohs-libs `feature/sdr-dab`, decoder `dab`.** All our own Rust: mode I
+  OFDM (null and phase-reference sync, frequency to +-40 kHz, timing,
+  sample-clock tracking), FIC (FIG 0/0, 0/1, 0/2, 1/0, 1/1 with short
+  labels), MSC sub-channels (UEP and EEP, time de-interleaving, Viterbi),
+  DAB+ super frames (Fire code, RS(120,110), AU CRCs) with HE-AAC v2
+  through faad2 at run time, and **our own MPEG-1/2 Layer II decoder for
+  old DAB** (its patents have expired: Brian, 23/10/2026), so old-DAB
+  stations play with nothing installed. Input 2.048 MS/s, or higher and
+  resampled in Rust (the Pluto's 2.4). Tested on a transmitter model in
+  the tests (clean to 7 dB SNR in the block, DAB+ to 5 dB; +-35 kHz;
+  echoes; fading; +-60 ppm clocks); 1-3.5 % of a 6900HX core per session.
+  The catalogue lists `dab` with `needs: ["faad2"]` for `dab+` only
+  (§4.4 "Partly available"). The feed carries the playing service's
+  programme text (`dls`, from PAD; no faad2 needed even for DAB+) and
+  `complete`, and `shack_sdr.dab.survey` answers "is there an ensemble
+  here" for the coming Band III scan (FIC read about 0.2 s after a frame
+  begins, the list complete in under a second with labels repeated once a
+  second; about 1.5 s a block on air). Its feed, codes and API are in
+  ohs-libs `rust/shack_sdr/README.md` "DAB". Not yet: the slideshow and
+  DL Plus, FIG 2, data services, fdk-aac as an alternative to faad2.
 - **DRM:** robustness modes A to D, audio through fdk-aac for xHE-AAC.
 
 Also in M3:
@@ -1441,7 +1491,8 @@ Also in M3:
 - `decodeThreads` above 1 on the desktop;
 - `listen`.
 
-**Riskiest item:** the audio contract. Everything assumes **12 kHz mono**:
+**Riskiest item:** the audio contract. Everything assumes **12 kHz mono**
+(DAB plays meanwhile through `Host.audio(rate=12_000, channels=1)`, §4.1):
 
 - the engine's audio (DESIGN.md);
 - `api/audio/rx` (`audio/L16; rate=12000; channels=1`, SERVER-API);
@@ -1453,8 +1504,10 @@ store, Android, Apple and recordings: the format is announced up front
 (GUIDE §2 "Audio"), and clients that only take 12 kHz mono get a
 downmix. A close second is DAB+'s HE-AAC with 960-sample frames: FFmpeg
 cannot apply SBR to them (OnAir `docs/CODECS.md`), so only a user's faad2
-or fdk-aac gives full audio. **[guess]**: whether Debian's `libfaad2`
-2.11.2 handles them needs testing early.
+or fdk-aac gives full audio. Debian's `libfaad2` 2.11.2 passes the
+loader's probe and opens on DAB+'s AudioSpecificConfig (checked
+23/10/2026); **[guess]**: whether it decodes broadcast HE-AAC with
+960-sample frames still needs a real DAB+ stream.
 
 **M4: digital voice.**
 
@@ -1611,7 +1664,9 @@ None is open. Brian answered all seven on 22/10/2026:
   `keep_heap()`. Measured only on the bank alone.
 - macOS library validation blocking user dylibs and SDRplay's API (§5.4),
   and Windows Smart App Control's view of user DLLs.
-- The faad2, fdk-aac and mbelib version symbols and floors (§5.3), and
+- The fdk-aac and mbelib version symbols and floors (§5.3); faad2's
+  passed against Debian's 2.11.2 on 23/10/2026 (version, symbols and the
+  probe's silent frame); and
   whether Debian's faad2 decodes DAB+'s 960-sample HE-AAC.
 - RTTY's accuracy targets (§7.2), the CI times (§7.3), and DWD's RTTY
   still being on the air.
