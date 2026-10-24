@@ -629,11 +629,15 @@ rather than skipping it.
   Captures (ci16_le, 2.4 MS/s, 600 MB each) are on ohs-box under the
   Radio module's `recordings/` (`openhamshack-radio-20261023-23*`); copy
   what you need to `~/build/dab11b/` and delete it after.
-- **Build wheels into a folder of your own.** `~/build/ohs-dist/<name>`
-  folders are what other sessions vendor from: building into one another
-  session's lock names (shack-sdr-m2c, 24/10/2026) left SHA256SUMS that
-  no longer matched what Radio main vendored. The build is reproducible,
-  so rebuilding from the commit the lock names puts the hashes back.
+- **Build wheels into a folder of your own, and check first.**
+  `~/build/ohs-dist/<name>` folders are what other sessions vendor from:
+  building into one another session's lock names left SHA256SUMS that no
+  longer matched what Radio main vendored - twice on 24/10/2026 (m2c,
+  then m2e, picked as "the next letter" while another session had just
+  used it). Before a build, `grep ohs-dist tools/vendor/*.lock` on every
+  app's main and `ls ~/build/ohs-dist`, and use a name nobody has; never
+  "the next letter". The build is reproducible, so rebuilding from the
+  commit the lock names puts the hashes back.
 - **A Caddy site's `respond @untrusted ... 403` never guarded its
   `handle` blocks** (found 13/10/2026, dock360 `feature/ohs-tunnel`
   a745741). Caddy sorts directives itself and `respond` runs after
