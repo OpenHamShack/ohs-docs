@@ -606,6 +606,34 @@ rather than skipping it.
   happen. Reference codes are SHACK-XXXX: never OHS (brand/README.md).
   Endpoint, fetcher and contract: openhamshack-os docs/DIAGNOSTICS.md.
 
+- **DAB data off air: what the transmitter model never showed** (ohs-libs
+  shack_sdr, 24/10/2026; real captures of the local blocks, ignored tests
+  in `rust/shack_sdr/tests/dab_data.rs`). Every one of these passed the
+  model's own tests and failed on real signal:
+  - *Packet mode is a stream, not frames.* Packets need not start at a
+    logical frame's start, and the packet FEC's RS packets (address 1022,
+    24 bytes) carry parity, not a CRC: read as damaged packets they sent
+    the reader hunting byte by byte, and BBC National's SPI on 12B gave
+    nothing. `packet.rs` now carries bytes over and steps FEC packets.
+  - *An X-PAD with no contents indicators continues at the previous
+    X-PAD's whole length,* CI list included (DAB+: the data stream
+    element's length). Taking the sub-fields' length cut every frame short:
+    no programme text or slide from 9A/9B's DAB+ services.
+  - *BBC's SPI programme files name their service in a tag-0x05 element
+    under `epg`* ("not used" in TS 102 371 V3.2.1), with no ScopeID and no
+    location bearer.
+  - *DL Plus length markers are sometimes the length, not less one*
+    (WILD Country on 9B); cut a tag at the label's end rather than drop it.
+  - *A SlideShow in a DAB+ X-PAD can get ~100 bytes/s:* a 320x240 slide
+    takes minutes, so a 62 s capture proves data groups, not pictures.
+  Captures (ci16_le, 2.4 MS/s, 600 MB each) are on ohs-box under the
+  Radio module's `recordings/` (`openhamshack-radio-20261023-23*`); copy
+  what you need to `~/build/dab11b/` and delete it after.
+- **Build wheels into a folder of your own.** `~/build/ohs-dist/<name>`
+  folders are what other sessions vendor from: building into one another
+  session's lock names (shack-sdr-m2c, 24/10/2026) left SHA256SUMS that
+  no longer matched what Radio main vendored. The build is reproducible,
+  so rebuilding from the commit the lock names puts the hashes back.
 - **A Caddy site's `respond @untrusted ... 403` never guarded its
   `handle` blocks** (found 13/10/2026, dock360 `feature/ohs-tunnel`
   a745741). Caddy sorts directives itself and `respond` runs after
