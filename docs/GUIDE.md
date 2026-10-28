@@ -174,6 +174,15 @@ rather than skipping it.
   VHF and AIS outright. The "RF" notch is FM and MW together and costs at
   least 4 dB on 144-148 MHz. Radio's `auto` keeps both out wherever they
   would hurt (`ohsradio/notch.py`); never switch one in near the band in use.
+- **DMR on the air (GB7IR, 28/10/2026) broke four things the model did
+  not:** an 8-bit talker alias starts one octet later than a 7-bit one;
+  burst F's privacy bit is set on plain calls (believe the LC, not the
+  burst); about one noisy embedded LC in 32 passes its checksum, so trust an
+  embedded LC only when it repeats; and fades split long overs, so a call
+  ends at its terminator or after a second of silence. Real DMR IDs and
+  aliases are people: expectations for real captures live beside the file,
+  never in the (publicly mirrored) repo, and the simulator uses country
+  code 999.
 - **Real signals find what synthetic tests miss.** Every Rust decoder so far
   (DAB SPI and SlideShow, TII, DL Plus) passed its transmitter-model tests
   and then failed on a real capture. Record the real thing early (an IQ
