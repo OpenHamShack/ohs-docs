@@ -121,6 +121,48 @@ rather than skipping it.
    present, licensed frequencies only.
 9. **Release:** which feeds and versions move, and who cuts them? (§6)
 
+### Use these (openhamshack-nb and ohs-libs tools, 28/10/2026)
+
+Each script's header has the detail; these replace doing it by hand.
+
+- **Before merging, test what you changed:** `tools/suite-affected.sh
+  [-j N] [--list] main` (openhamshack-nb) runs only the test modules near
+  the branch's changes (changed tests, tests named like a changed module or
+  its package, direct importers, tests naming a changed script). The full
+  run is the release's.
+- **The full suite is remembered:** `tools/run-suite-split.sh` records
+  each green full run of a clean, committed tree in `~/build/suite-cache/`
+  (by tree, interpreter and ohsdigi build), and `--if-needed` exits at
+  once ("tree <hash> already green at <time>") when that tree passed.
+  The tree ignores store/*/module.yaml's version line, so
+  `tools/store-release.sh` skips the suite for a release commit whose
+  parent ran green; run the suite with
+  `PYTHON=~/build/venvs/ohs-qt/bin/python` (store-release's) and an
+  ohsdigi built by `tools/build-ohsdigi.sh --host --install` (the same
+  bytes in every worktree) so it matches. `--skip-suite` stays as the
+  deliberate override.
+- **After a store install:** `tools/store-post-install.sh <app>` (run by
+  store-release.sh) checks on the box that the module is active, its
+  journal and the kernel's since the install show no segfault,
+  `status=139` or error-level Traceback, the in-container selftest
+  passes, and `store/<app>/smoke.json`'s GETs answer. A failure notifies
+  Brian and prints the rollback command; nothing rolls back by itself.
+- **Real air:** `tools/capture-and-test.sh --yes-receiver <dmr|ais|adsb|dab>
+  <freqHz> <seconds> [--rate S/s] [--antenna A|B|C]` from shack records IQ
+  on ohs-box's Radio and runs the decoder's real-file test in ~/ohs-libs.
+  `--yes-receiver` means Brian has agreed to this capture taking his
+  receiver now; never pass it on your own judgement. It refuses while
+  something holds the receiver (`--drop-sessions` to stop it) or the
+  radio is on the air, restores dial, mode, antenna and rate even on
+  Ctrl-C, copies to `~/build/real-<decoder>/<id>/` with a size and sha256
+  check, and deletes the box's copy (`--keep-on-box`).
+- **shack-sdr wheels:** in ohs-libs, `tools/build-wheels-safe.sh <topic>`
+  (never `build-sdr-wheels.sh --out` by hand) builds into the next
+  `~/build/ohs-dist/shack-sdr-<topic><n>` that no folder or
+  openhamshack-nb lock (any checkout, worktree or branch) already uses;
+  then in openhamshack-nb `tools/vendor-shack-sdr.sh [--why "..."]
+  <folder>` copies the wheels and rewrites the lock's hashes and header.
+
 ## 4. Testing without a radio
 
 - **Test box:** Dock360 app `openhamshack-fakebox`, **off by default**. Start it
@@ -167,6 +209,14 @@ rather than skipping it.
 | **Test APKs** | `https://shack.tail547521.ts.net:8443/apps/` | tailnet only, from `/srv/openhamshack-apps`; never the public release folder |
 
 ## 5. Traps already paid for
+- **A store release that "installed fine" can be crashing** (Store Radio
+  0.1.22-beta.15: box-store-update.sh said DONE; the app then segfaulted
+  in _ctypes on an RSP reopen, seen only as the kernel's "segfault" and
+  the unit's "status=139"). Read the journal after every install, or let
+  `tools/store-post-install.sh` do it (§3, "Use these").
+- **Two agents building wheels into one folder** overwrote each other's
+  shack-sdr wheels three times, leaving a lock pinning wheels that were
+  gone. Use ohs-libs `tools/build-wheels-safe.sh` (§3).
 - **An SDRplay RSP's notches cut more than their names say.** Measured on
   ohs-box's RSPdx (24/10/2026, 145.3 MHz): the DAB notch costs about 4 dB
   of signal and 2.5 dB of signal-to-floor on 2 m, and its datasheet
