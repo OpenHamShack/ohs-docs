@@ -167,6 +167,19 @@ rather than skipping it.
 | **Test APKs** | `https://shack.tail547521.ts.net:8443/apps/` | tailnet only, from `/srv/openhamshack-apps`; never the public release folder |
 
 ## 5. Traps already paid for
+- **An SDRplay RSP's notches cut more than their names say.** Measured on
+  ohs-box's RSPdx (24/10/2026, 145.3 MHz): the DAB notch costs about 4 dB
+  of signal and 2.5 dB of signal-to-floor on 2 m, and its datasheet
+  stopband is more than 30 dB deep across 160-230 MHz, so it removes marine
+  VHF and AIS outright. The "RF" notch is FM and MW together and costs at
+  least 4 dB on 144-148 MHz. Radio's `auto` keeps both out wherever they
+  would hurt (`ohsradio/notch.py`); never switch one in near the band in use.
+- **Real signals find what synthetic tests miss.** Every Rust decoder so far
+  (DAB SPI and SlideShow, TII, DL Plus) passed its transmitter-model tests
+  and then failed on a real capture. Record the real thing early (an IQ
+  recording on ohs-box, read with `ssh ohs-box sudo cat`), check where in
+  it there is traffic before concluding a decoder is deaf, and keep an
+  ignored test that runs on the file when present.
 - **The 21/10/2026 rename rewrote every hub's history, not just its
   surface.** `git filter-repo` replaced the old brand everywhere - text,
   paths, branch names, commit messages - across every family repo. The
