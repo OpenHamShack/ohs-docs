@@ -188,6 +188,25 @@ rather than skipping it.
   (DATV, wide digital modes) wants the same check. And a decoder's
   transmitter model must filter as sharply as a real IF filter: a soft
   9-tap filter in the first ADS-B tests hid this completely.
+- **A container's page cache counts against its memory limit.** Store
+  Radio runs with memory.high 768 MB; a 6 MS/s IQ recording (24 MB/s) on
+  ohs-box lost 3.5 s in 46 blocks while the NVMe disk sat idle, because the
+  recording's own dirty pages filled the cgroup and the kernel throttled
+  the writer to reclaim them (openhamshack-nb 1153df3: the recorder now
+  syncs and drops what it has written every 32 MB). Anything that writes
+  a lot from inside a store app - recordings, caches, logs - wants the
+  same, or a limit sized for it; `memory.events` in the service's cgroup
+  shows `high` counts, but they reset when the service restarts.
+- **A thread stop() could not join must not live on into the next run.**
+  Radio's engine cleared one shared stop event at every start, so a receive
+  thread blocked in a read past stop()'s join carried on into the next run
+  and read a device that never opened; with an SDRplay reopen that ended
+  in a segfault in _ctypes (ohs-box, 28/10/2026). Give each run its own
+  event and let each thread keep the one it started with
+  (openhamshack-nb ea84acc), and never touch a C library's structures
+  from another thread without the source's lock (ohs-libs shack_sdr
+  sources, c4dd24c): SdrplaySource read a pointer into the API's memory
+  after Close.
 - **A test writer and reader can agree and both be wrong.** The ADS-B
   writer and reader put TC 20-22's GNSS height in the barometric code;
   every round-trip test passed. Only having an outside implementation
