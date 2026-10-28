@@ -174,6 +174,26 @@ rather than skipping it.
   VHF and AIS outright. The "RF" notch is FM and MW together and costs at
   least 4 dB on 144-148 MHz. Radio's `auto` keeps both out wherever they
   would hurt (`ohsradio/notch.py`); never switch one in near the band in use.
+- **An SDRplay RSP below 5 MS/s cannot hear ADS-B** (ohs-libs shack_sdr
+  README, ADS-B; 28/10/2026). SDRplay's API (and SoapySDRPlay3's table,
+  which shack_sdr's source copies) picks a 1.536 MHz IF filter for any rate
+  under 5 MS/s, and Mode S's bits differ around ±1 MHz from the carrier:
+  through that filter some bit patterns read wrong at any SNR. The first
+  real 1090 MHz capture on ohs-box (2.4 MS/s, dial offset 300 kHz) gave no
+  DF17 to the decoder or to a brute-force search of every burst. Radio's
+  ADS-B session reopens an RSP at 6 MS/s (5 MHz filter) and puts the
+  operator's rate back after (openhamshack-nb ohsradio/adsb.py,
+  Radio.restart_at); 8 MS/s is no option there because it does not
+  decimate to the engine's 12 kHz. Any other wideband decoder on an RSP
+  (DATV, wide digital modes) wants the same check. And a decoder's
+  transmitter model must filter as sharply as a real IF filter: a soft
+  9-tap filter in the first ADS-B tests hid this completely.
+- **A test writer and reader can agree and both be wrong.** The ADS-B
+  writer and reader put TC 20-22's GNSS height in the barometric code;
+  every round-trip test passed. Only having an outside implementation
+  (pyModeS) read our writer's output caught it: GNSS height is plain
+  metres. Golden files should hold what an independent reader makes of
+  *our* output, not only what we make of theirs.
 - **DMR on the air (GB7IR, 28/10/2026) broke four things the model did
   not:** an 8-bit talker alias starts one octet later than a 7-bit one;
   burst F's privacy bit is set on plain calls (believe the LC, not the
