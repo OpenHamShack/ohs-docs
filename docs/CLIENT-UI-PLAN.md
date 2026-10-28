@@ -20,6 +20,14 @@ Brian's decisions this plan works from (28/10/2026):
    Back from an app returns to it; Back from it leaves (optionally after a
    "Leave OpenHamShack?" confirmation).
 
+Brian's answers to this plan's decisions (28/10/2026, recorded in §13):
+receive audio **stops** on going back to the launcher (no mini player);
+when the last client leaves, the box **releases everything at once** (on
+goodbye, or when the 30 s lease expires; no further grace); the separate
+DAB Radio and Ships TV tiles are **retired** for a "Start in" setting;
+"Leave OpenHamShack?" is **on by default everywhere**. Still open: the
+web-view shell, QO-100 WB's source repo, and the Apple session.
+
 Contents: 1 Where we are · 2 The spectrum stream contract · 3 The overlay
 contract · 4 The rendering spec · 5 Server-driven UI · 6 The launcher and
 navigation · 7 Client presence: freeing the radios · 8 The web-view option
@@ -559,7 +567,6 @@ actually run, and the feature views they offer.
   callsign and box name, keyed by `controllerId`, never by address. The
   first row is the box last used. A Classic box shows as one QO-100 WB tile
   (CONTROLLER-CONTRACT §2.3).
-- A **mini player** row at the top while audio plays (§6.5).
 - Icons need the box: `icon` in the well-known is in the contract but not
   built (`discovery.py:88-97`); the descriptor's icon serves meanwhile, and
   the platform adds `icon` in a later release [recommend: in the next
@@ -597,50 +604,53 @@ stop transmit; receive audio follows §6.5.
 - A 401 from an app is never a sign-out: the client asks the platform and
   forgets the token only on `token_revoked`/`bad_credentials` (GUIDE §5).
 
-### 6.5 Audio when going back to the launcher
+### 6.5 Audio when going back to the launcher (decided)
 
-**Recommended:** receive audio **keeps playing** inside OpenHamShack. The
-launcher shows a mini player (logo, station or frequency, mute, stop);
-OK on it returns to that app. Opening another app that plays audio replaces
-it (one receive stream at a time: one decoder and one network stream on a
-Fire TV). Leaving OpenHamShack stops it on a TV; on a phone or tablet,
-listening apps (DAB, FM) keep playing in the background with the system
-media notification, and radio apps stop (§6.6). Whatever stops, the client
-says goodbye to the box, which then frees what it held (§7).
+**Decided (Brian, 28/10/2026): receive audio stops when you go back to the
+launcher. There is no mini player.** Back from an app's first screen closes
+its audio stream and its spectrum and overlay socket, and the client tells
+the box it has left that app (a presence renewal with no app, §7.2), so the
+box frees what it held at once (§7.3). The launcher is silent; opening the
+app again starts it afresh (a DAB station plays again from the "Start in"
+or last-station memory on the client).
 
-### 6.6 "Leave OpenHamShack?" (Brian, 28/10/2026)
+Not covered by the decision and left as the plan's default: pressing the
+device's Home key **inside** an app. On a TV that stops everything (the app
+is no longer on screen: `onStop`, goodbye). On a phone or tablet a listening
+app (DAB, FM) keeps playing in the background with the system media
+notification, renewing presence from the media service, and every other
+app stops.
 
-A client setting, **Ask before leaving OpenHamShack**, per device.
+### 6.6 "Leave OpenHamShack?" (decided)
+
+A client setting, **Ask before leaving OpenHamShack**, per device, offered
+on every device. **Decided (Brian, 28/10/2026): on by default everywhere**:
+Android TV, Fire TV, phones, tablets, iPhone, iPad and Apple TV.
 
 - With it on, Back on the launcher shows: **Leave OpenHamShack?** with
   **Stay** (focused) and **Leave**. Back inside the dialog is Stay. There
   is no time-out.
-- With audio playing, the choices name what happens:
-  - TV (Android TV, Fire TV, Apple TV): **Stay** / **Leave and stop the
-    radio**.
-  - Phone and tablet, a listening app playing: **Stay** / **Leave, keep
-    playing** / **Leave and stop**.
-  - With it off, Back leaves at once and audio follows §6.5.
+- Nothing plays on the launcher (§6.5), so there is no audio choice to
+  make: the two buttons are all. With the setting off, Back leaves at once.
 - Android: an `OnBackPressedCallback` enabled only on the launcher and only
   with the setting on, so predictive back keeps working elsewhere; Leave
-  stops audio as chosen, sends the presence goodbye (§7.2), then
-  `finish()`. "Leave, keep playing" keeps the presence lease renewed from
-  the media service instead.
+  sends the presence goodbye (§7.2), then `finish()`.
 - Apple TV: `onExitCommand` on the launcher root while the setting is on;
   Leave lets tvOS go home. Apple's guidance is that Menu at the top level
   returns to the home screen, so a confirmation there may be questioned at
-  App Review [guess]; the setting is therefore off by default on Apple TV.
-- **Recommended defaults:** on for Android TV and Fire TV (Back is the key
-  pressed most often, and leaving loses the radio); off on phones, tablets
-  and Apple TV.
+  App Review [guess]. Brian chose on by default regardless; if review
+  objects, the fallback is off by default on Apple TV only (§12).
 
-### 6.7 The separate DAB Radio and Ships tiles
+### 6.7 The separate DAB Radio and Ships tiles (decided)
 
-**Recommended:** retire them. DAB Radio's stub app (`android/dab-launcher`)
+**Decided (Brian, 28/10/2026): retire them.** DAB Radio's stub app (`android/dab-launcher`)
 and its separate task (`DabRadioActivity`, `taskAffinity`: manifest
 `:75-89`) go, and Ships never gets one. Instead a **Start in** setting
-(launcher / last app / a chosen entry, e.g. DAB Radio) gives one-press DAB
-from the single tile, and the launcher remembers focus on the last entry.
+(the launcher, the last app used, or a chosen app or entry such as DAB
+Radio, on a chosen box) gives one-press DAB from the single tile, and the
+launcher remembers focus on the last entry. A chosen app that the box no
+longer runs, or a box that does not answer, starts in the launcher with
+the reason shown on its tile.
 Optional shortcuts stay possible later without new architecture: a deep
 link `openhamshack://open?controller=<id>&entry=<app>/<entry>` that a stub
 tile, an Android TV home channel or a tvOS Top Shelf item can call.
@@ -670,7 +680,7 @@ nothing, and what it started keeps the radio.
 | Transmit (PTT) | client, 1 s, 5 s | unkeys | GUIDE §2; openhamshack-nb `docs/SERVER-API.md:45-46` |
 | Enable TX arm | client, 1 s (between overs too), 5 s | disarms and unkeys | GUIDE §2; `SERVER-API.md:761` |
 | AIS ship map | client, every 10 s, `leaseS` 30 s; `lingerS` 60 s after the last | ends AIS, gives the receiver back exactly as it was | `SERVER-API.md:1741-1776` |
-| ADS-B | named in Brian's brief as AIS's twin; **not found** in openhamshack-nb main on 28/10 [gap: being built?] | | |
+| ADS-B | **being built** (28/10/2026), shaped like AIS's session and lease; not yet on openhamshack-nb main | as AIS | |
 | Broker claim | app to platform, every 2 s; 10 s (6 s on air) | frees the device; on air, runs safe-off first | CONTROLLER-CONTRACT §7.2-7.3 |
 | Icom scope | while a scope socket is open; off 5 s after the last | radio's scope output off | `icom/docs/TV-API.md:465-471` |
 | DAB playback, a session's `listen`, the receive audio stream | **no lease**: DAB holds the receiver (`rxOwner`) until someone stops it (`SERVER-API.md:105, 830-850`); audio ends only when TCP notices | nothing | |
@@ -721,21 +731,23 @@ On `gone` (goodbye at once; expiry after 30 s), for each app the client
 used:
 
 1. Close that client's audio, spectrum and overlay streams.
-2. If it was the **last** client holding a client-scoped hold, end it after
-   the hold's linger (AIS 60 s; DAB 30 s, so a TV moving between views keeps
-   playing): `rxOwner` goes back to `{}`, the receiver returns to its
-   `prior` dial and mode, and any span pin the hold made is lifted
-   (`SERVER-API.md:340-352`).
+2. If it was the **last** client holding a client-scoped hold, end it
+   **at once** (decided, Brian 28/10/2026: no linger): `rxOwner` goes back
+   to `{}`, the receiver returns to its `prior` dial and mode, and any span
+   pin the hold made is lifted (`SERVER-API.md:340-352`). This changes
+   AIS's `lingerS` from 60 s to 0 (`SERVER-API.md:1753, 1774`), and ADS-B
+   is built the same way.
 3. If the app then holds a device for **nothing** (no client, no
-   station-scoped hold, no local operator), it **releases its broker claim**
-   after `idleReleaseS` (default 120 s): the same path as `api/stop`, which
-   releases the claim (`SERVER-API.md:44`). The radio shows free on the
-   Hardware page, and another app, a desktop or the band scan can claim it.
-   The next client to open the app claims it again (receive only).
-4. **Per-app policy**, a setting each app declares in its descriptor:
-   `whenNobody: stop | keep` per hold. Default `stop` for DAB, listen, AIS
-   and ADS-B maps; Brian may want DAB to keep playing for a timeshift or a
-   room speaker [decision 4].
+   station-scoped hold, no local operator), it **releases its broker claim
+   at once**: the same path as `api/stop`, which releases the claim
+   (`SERVER-API.md:44`). The radio shows free on the Hardware page, and
+   another app, a desktop or the band scan can claim it. The next client to
+   open the app claims it again (receive only).
+4. **Timing is the lease alone:** a goodbye frees things immediately; a
+   client that vanishes is freed when its 30 s lease expires. There is no
+   per-app "keep playing with nobody watching" policy (decided: stop).
+   The price: a TV that goes back to the launcher and straight into the
+   same app restarts AIS or DAB from cold (a few seconds).
 
 **Several radios on one box** (say an RSPdx for Radio, a Pluto for NB
 and an RTL-SDR another app wants): presence is per client per app, holds are per app per
@@ -797,7 +809,7 @@ embed one.
 1. **Contract:** new `spectrum/1`, `overlay/1`, `ui/1` in ohs-libs `spec/`;
    REMOTE-CONTRACT gains a section per contract; CONTROLLER-CONTRACT gains
    `devices/self/levels`, the built `icon` and the presence service (§7);
-   SERVER-API gains each app's client-scoped holds and `whenNobody`.
+   SERVER-API gains each app's client-scoped holds (released at once).
 2. **Server:** every app serves the three, via ohs-libs `shack_spectrum` and
    `shack_ui`: NB/Radio (openhamshack-nb), Flex, Icom (dock360-apps), WB
    (no live repo: §12), DATV/ATV store apps (screens only); each app
@@ -835,14 +847,14 @@ Effort is in **session-days** (one focused session with its agents)
 | # | Step | Work | Effort | Owner |
 |---|---|---|---|---|
 | 0 | **Contracts and shared code** | `spec/` schemas and vectors; `shack_spectrum` (encoder, per-client decimation, levels, latest-wins sender, overlay helper) and `shack_ui` in Python; Kotlin and Swift decoders | 4 | architect then builder, ohs-libs |
-| 0b | **Presence** | platform service (lease, goodbye, events, status) in the edition; Radio's client-scoped holds, linger, `whenNobody` and idle claim release; the client's goodbye and renewals | 4 (platform 1.5, Radio 1.5, client 1) | ohs-beta (edition); OHS Radio session; tablet session |
+| 0b | **Presence** | platform service (lease, goodbye, events, status) in the edition; Radio's client-scoped holds, released at once with the broker claim (AIS `lingerS` to 0); the client's goodbye and renewals | 4 (platform 1.5, Radio 1.5, client 1) | ohs-beta (edition); OHS Radio session; tablet session |
 | 1a | **Fire TV spike** | GL ES 2 waterfall on Brian's Fire TV vs today's Canvas path, against §4.6; one day before anything depends on it | 1 | tablet session (verifier) |
 | 1b | **Radio's TV screen** | Android `core-spectrum`, `core-ui` renderer, the launcher, Radio's adapter; Radio serves `spectrum/1`, `overlay/1` (band, channels, stations, sessions, spots) and its TV screens (home, DAB, FM, Ships with `map.ais`) | 12 (client 8, server 4) | tablet session (Remote); OHS Radio session (server) |
 | 2 | **NB** | NB's screens and overlays (beacons, alerts, sessions); its TV face moves | 3 | NB/Radio server owner; tablet session |
 | 3 | **Flex** | Flex serves `spectrum/1` per panadapter and its overlays (slices, spots, plan); `FlexScope` adapter deleted | 4 | Flex app owner [none named in GUIDE §6]; tablet session |
 | 4 | **Icom** | `api/scope` to `spectrum/1` (units `rel`); `radioFace` as a native component in server screens | 4 | Icom app owner [none named]; tablet session |
-| 5 | **WB, DATV, ATV** on TV and phone | WB's `/api/qo100` as `spectrum/1` (`signals` overlay) once it has a repo; DATV/ATV screens only | 3 + WB repo | decision 5 |
-| 6 | **Apple** | Metal waterfall, SwiftUI renderer, launcher, Top Shelf optional; every app at once, because the screens already exist | 12 | **no Apple owner is named in GUIDE §6**; HANDOVER says "Apple twin via the Mac script". Decision 6 |
+| 5 | **WB, DATV, ATV** on TV and phone | WB's `/api/qo100` as `spectrum/1` (`signals` overlay) once it has a repo; DATV/ATV screens only | 3 + WB repo | open decision 2 |
+| 6 | **Apple** | Metal waterfall, SwiftUI renderer, launcher, Top Shelf optional; every app at once, because the screens already exist | 12 | **no Apple owner is named in GUIDE §6**; HANDOVER says "Apple twin via the Mac script". Open decision 3 |
 | 7 | **Desktop** | `shack_spectrum.qt` in NB/Radio, DATV, ATV; WebGL waterfall shared by Flex/Icom/WB web pages | 5 | NB session for openhamshack-nb (it also cuts Radio releases, GUIDE §6); app owners for web |
 | 8 | **Clean-up** | old feeds removed one Remote release after the last reader; adapters and hand-written kind screens deleted | 2 | each owner |
 
@@ -866,7 +878,7 @@ the app. So each switch is gated on proof, not on hope:
 | **Real Fire TV against ohs-box Radio**, 10 minutes: `dumpsys gfxinfo`, memory, CPU against §4.6 | the budget holds on the weakest device | verifier |
 | Old feed and new feed side by side on one box: same peaks at the same frequencies within one column, same noise floor within 1 dB | the server's quantisation is right | app tests on recorded IQ (GUIDE §5: real captures, `iqlib`) |
 | A transmit test proves the renderer refuses `level: transmit` and that leaving a screen unkeys | §5.6 | unit tests; no radio |
-| Presence: goodbye, expiry (client killed with `am force-stop`, network cut, TV to standby) each free the RSPdx within 30 s + linger + `idleReleaseS`, and the broker shows it free; a keyed simulator is never released | §7 | app tests on the simulator; the Fire TV against ohs-box, receive only |
+| Presence: goodbye, expiry (client killed with `am force-stop`, network cut, TV to standby) free the RSPdx at once on goodbye and within 30 s on expiry, and the broker shows it free; a keyed simulator is never released | §7 | app tests on the simulator; the Fire TV against ohs-box, receive only |
 
 A switch ships only when all seven pass for that app.
 
@@ -880,40 +892,36 @@ A switch ships only when all seven pass for that app.
 | The Fire TV stick cannot hold the budget | the 1a spike before any dependency; GL ES 2 baseline; per-client caps |
 | Server-driven UI grows into a browser (expressions, styling) | the vocabulary is closed; anything more is a native component; schema changes reviewed by the architect |
 | Platform refuses unknown manifest keys (§1.5) | everything app-served; only two small platform routes |
-| WB has no live source repo, so it cannot serve anything new | decision 5; until then it keeps its feed through an adapter |
-| No Apple owner and no TestFlight (needs Brian's App Store Connect record and key, HANDOVER) | decision 6; Apple starts after step 1b proves the contracts |
+| WB has no live source repo, so it cannot serve anything new | open decision 2; until then it keeps its feed through an adapter |
+| No Apple owner and no TestFlight (needs Brian's App Store Connect record and key, HANDOVER) | open decision 3; Apple starts after step 1b proves the contracts |
 | Old sideloaded Remotes still read old feeds | old feeds kept one Remote release past the last reader (§2.5) |
-| Presence frees a radio someone still wanted (a TV in standby while DAB plays to the room) | linger per hold, `whenNobody: keep` per app, station-scoped holds never released; decision 4 |
+| Presence frees a radio someone still wanted (a TV in standby while DAB plays to the room) | accepted by Brian's decision (stop at once); station-scoped holds are never released, so unattended work belongs there |
+| App Review questions "Leave OpenHamShack?" on by default on Apple TV | fall back to off by default on Apple TV only, and say so to Brian |
 | An old client with no presence looks gone and loses its DAB | apps release only holds made by clients that have presence; older clients keep today's behaviour until they update |
 
 ---
 
 ## 13. Decisions for Brian
 
+### 13.1 Decided (Brian, 28/10/2026)
+
+| Question | Decision | Where |
+|---|---|---|
+| Audio on going back to the launcher | **stops**; no mini player | §6.5 |
+| When the last client leaves | **release everything at once**: on goodbye immediately, otherwise when the 30 s lease expires; no linger, no idle grace | §7.3 |
+| Separate DAB Radio and Ships TV tiles | **retired**; a "Start in" setting (launcher, last app, or a chosen app) | §6.7 |
+| "Leave OpenHamShack?" | **on by default everywhere** (TV, phone, tablet, Apple TV), the setting offered on all | §6.6 |
+
+### 13.2 Still open
+
 1. **Web-view shell on Android?** Recommend **no**: native renderer on
    phones and TVs (Apple TV cannot have a web view, so it would be a second
    UI stack anyway); web stays for the box console and desktop forms.
-2. **DAB Radio and Ships tiles on the TV home?** Recommend **retire them**:
-   one OpenHamShack icon, with a "Start in" setting (launcher / last app /
-   DAB Radio) for one-press listening; deep links kept for optional
-   shortcuts later.
-3. **Audio, and leaving:** recommend **audio keeps playing with a mini
-   player** when you go back to the launcher, and stops when you leave
-   OpenHamShack on a TV (phones keep listening apps playing in the
-   background); **"Leave OpenHamShack?" on by default for Android TV and
-   Fire TV**, off on phones, tablets and Apple TV (where Apple expects Menu
-   to go home).
-4. **When the last client leaves:** recommend the box **stops DAB, listen
-   and the AIS/ADS-B maps after a short linger (30-60 s) and then frees the
-   radio's broker claim after 2 minutes idle**, while station-scoped work
-   (saved decoders, the skimmer, recordings, scans, the BBS) keeps running.
-   Say if you want DAB to keep playing with nobody watching (`whenNobody:
-   keep`).
-5. **QO-100 WB:** it has no live source repo, so it cannot serve the new
+2. **QO-100 WB:** it has no live source repo, so it cannot serve the new
    contracts. Recommend **give WB a repo again** (from the store app's
    source, under its current name) before step 5; until then the shared
    waterfall shows it through a client adapter.
-6. **Apple:** recommend **a dedicated Apple session starting after step 1b**
+3. **Apple:** recommend **a dedicated Apple session starting after step 1b**
    (Radio on the Fire TV proves the contracts), and Brian's App Store
    Connect record and API key so TestFlight can carry it to the iPhone,
    iPad and three Apple TVs.
