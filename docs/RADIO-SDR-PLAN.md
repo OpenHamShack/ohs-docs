@@ -902,21 +902,26 @@ the package and deletes both files.
 
 **mbelib's build:**
 
-- **The pin:** tag v1.3.0, commit `e2d84c12b41419b5a051d16b39e4510b4b552065`.
-  The GitHub archive of that commit had sha256
-  `5f89591d14f9d0f31a4243685b1200ccdae4d7581d295a9c971c540696e973c9`,
-  fetched 22/10/2026. GitHub's archives are not promised to be
-  byte-stable, so the build fetches the commit with git and checks its id
-  and a sha256 over the sorted tree. The archive hash is only a fast first
-  check. The five commits on master after v1.3.0 touch only packaging and
-  MSVC: 1b39cc9, 27b3f1b, f8ef717, ac749b0, 9a04ed5.
-- **The build needs** `cmake`, `make` and `gcc`. The op installs them
-  through apt, which is root, and records them in `stamp.json` so remove
-  takes them away again if they were not there before.
-- **The fetch and the build** (`cmake -DCMAKE_BUILD_TYPE=Release`, target
-  `mbe-shared`) run as the throwaway user (point 3): network for the
-  fetch only, none for the build.
-- **The root step** copies `libmbe.so.1*` out, checks it, and stages it.
+- **As built (ohs-beta, platform 2.0.0-beta.10, 28/10/2026; this
+  replaces the git-fetch and CMake plan written on 22/10):**
+  - **The pin:** tag v1.3.0, commit `e2d84c12b41419b5a051d16b39e4510b4b552065`,
+    fetched as codeload's .tar.gz. It is pinned by the sha256 of the *tar
+    inside* the gzip, not of the .tar.gz: GitHub's gzip bytes have changed
+    before, the tar's have not.
+  - **The build:** plain gcc over the six C files (`-O3 -fPIC -shared
+    -Wl,-soname,libmbe.so.1`, `-lm`), not upstream's CMake, which wants g++
+    and a test framework for nothing the library needs. It runs as a
+    systemd DynamicUser with PrivateNetwork (the source is fetched and
+    checked before), capped at 1 GiB and 600 s.
+  - **What is staged** under `/opt/hostlibs/mbelib/`: `libmbe.so.1.0`,
+    `libmbe.so.1` linking to it (its SONAME), and upstream's `COPYRIGHT`.
+    On ohs-box (gcc 14.2.0, glibc 2.41) `libmbe.so.1.0` has sha256
+    `1d00edc652ecb581bd5139bdd1dff50388027749721c024e1c445bcfe4a08e87`,
+    byte-identical to the ohs-dev build, and `mbe_printVersion` gives
+    1.3.0. Radio opens `libmbe.so.1` from there.
+  - **Acceptance:** the patent notice must be accepted before the build;
+    Brian's acceptance is recorded (28/10, 06:02Z).
+  - **Not built yet:** arm64, and an offline upload route.
 - **`hostlib.restage mbelib` rebuilds** after a toolchain or libc
   upgrade.
 - The loader's child-process probe (§5.3) proves the result before Radio
