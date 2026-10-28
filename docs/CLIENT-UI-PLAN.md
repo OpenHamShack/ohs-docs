@@ -911,6 +911,7 @@ A switch ships only when all seven pass for that app.
 | When the last client leaves | **release everything at once**: on goodbye immediately, otherwise when the 30 s lease expires; no linger, no idle grace | §7.3 |
 | Separate DAB Radio and Ships TV tiles | **retired**; a "Start in" setting (launcher, last app, or a chosen app) | §6.7 |
 | "Leave OpenHamShack?" | **on by default everywhere** (TV, phone, tablet, Apple TV), the setting offered on all | §6.6 |
+| Web-view shell on Android | **no**: native renderer on phones and TVs; build started 28/10 with step 0 and, in parallel, the Fire TV spike and launcher shell | §8 |
 
 ### 13.2 Still open
 
