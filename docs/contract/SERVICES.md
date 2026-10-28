@@ -391,6 +391,21 @@ library (BANDPLAN-DATA.md §6.3). The same `services` map appears in `/.well-kno
 (CONTROLLER-CONTRACT.md §3). A client uses `time` to measure its clock
 offset (SYNC.md §3.2).
 
+`presence` (platform 2.0.0-beta.11, 28/10/2026) is the client lease of
+CLIENT-UI-PLAN.md §7.2-7.5; its contract is ohs-libs
+`spec/schemas/presence.schema.json`. As built, beyond that schema:
+`moved` carries `previous` (the client's last app, screen and holds);
+`gone` carries `app`, `screen`, `holds`, `deviceId` and `user`, so an
+app that subscribed late still knows what to release; list entries add
+`deviceId`, `deviceName`, `kind`, `user`, `since` and `lastSeen`. Renew and
+goodbye need a device token (an app token gets 403); list and events take
+a device or an app token, and every signed-in device sees full detail
+(Brian, 28/10/2026). The first renewal binds a client id to its device
+until the controller restarts (`403 not_your_client` from any other);
+at most 8 live clients per device. The events stream does not replay who
+is present: subscribe first, then GET the list. State is in memory, so a
+controller restart forgets everyone without sending `gone`.
+
 ## 7. Tests the services must carry
 
 1. A QSO posted twice with one UUID is one QSO; posted with two UUIDs, two
