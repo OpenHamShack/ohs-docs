@@ -400,7 +400,7 @@ B-spline row interpolation, `display.js:429-474`, is the reference). Zoom
 and pan inside the span re-map the texture at once; history rows keep their
 own frequency (the desktop's `Waterfall.remap`, `scopecore.py:191-204`).
 
-### 4.6 Fire TV stick budgets (to be measured, never yet done)
+### 4.6 Fire TV stick budgets (measured 28/10/2026, step 1a)
 
 | Budget | Value |
 |---|---|
@@ -410,6 +410,24 @@ own frequency (the desktop's `Waterfall.remap`, `scopecore.py:191-204`).
 | Memory | ring 2048 x 512 R8 = 1 MB; no allocation per frame (no GC pauses over 10 min) |
 | Network | ≤ 30 kB/s spectrum + overlay |
 | CPU | whole app ≤ 35 % of one core while showing Radio with audio [guess at a fair share; measure today's Canvas path first as the baseline] |
+
+**Measured (step 1a, tablet session, 28/10/2026)** on Brian's Fire TV
+(AFTKAUK001, Mali Bifrost, 50 Hz display): a GL ES 2 waterfall at
+1920 x 540, 15 rows/s, Compose labels above it.
+
+| Path | Frame rate | Process CPU |
+|---|---|---|
+| Today's Canvas path, full size (baseline) | ~89 % janky frames | 77 % |
+| GL in a TextureView | 50 fps | 35-38 % (HWUI recomposites every frame) |
+| GL in a **SurfaceView**, labels and metrics | 50 fps | **18-23 %** (12-14 % bare); GPU 2-3.7 ms (glFinish proxy), ingest and upload ~0.3 ms |
+| SurfaceView, 25 Hz cap | 25 fps | 13-17 % |
+| SurfaceView, row-driven (no interpolation) | 15 fps | 12-15 % |
+
+**Decided:** a SurfaceView behind the window with the labels in Compose
+above, full vsync with interpolated scroll by default, and a 25 Hz cap
+available. That leaves about 12-15 % of the 35 % budget for audio and
+the rest. The code is in openhamshack-remote `feature/gl-spike`
+(`core-spectrum`) and carries on into step 1b.
 
 ---
 
