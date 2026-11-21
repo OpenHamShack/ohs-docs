@@ -39,6 +39,7 @@ others in its row.
 | **OpenHamShack Digital Modes** (replaces WSJT-X) | ohsdigi in `~/openhamshack-nb/rust` | — | planned: works with any radio app via audio routing | planned | planned |
 | **OpenHamShack Flex** (was FlexDeck; FlexRadio) | — | — | **exists as a Dock360 app, to be rebuilt as an OpenHamShack app**: `~/dock360-apps-flex` | planned | planned |
 | **OpenHamShack Packet Radio** (AX.25 packet, APRS, connected-mode chat, IP over AX.25, SDR monitor; Brian 17/10/2026) | `~/shack-packet` (PyQt6, `shack_packet_app`; in progress) on ohs-libs `shack_packet` | — | **building (0.3.0)**: store app `shack-packet` (kind `packet`) in `~/shack-packet` `store/packet` + `src/shack_packet_box`: BBS, always-on conference room, mail store and FBB forwarding on a broker-reserved radio (shack-packet docs/BBS-DESIGN.md; forwarding contract ohs-libs `python/shack_packet/FORWARDING.md`) | — | — |
+| **OpenHamShack Monitor** (general receiver for the TV: broadcast, TV signals, aviation, maritime, satellites, pagers, two-way, sensors, ham; receive only; Brian 21/11/2026) | — (OnAir has its own desktop app; Monitor has none) | — | **installed 0.1.1-beta.1 on ohs-box**: store app `shack-monitor` (kind `monitor`, platform 2.0.0-beta.14+) in `~/openhamshack-monitor`: OnAir's `onair-server` unmodified at a pinned commit, jailed with no network, behind a Python facade (`docs/MONITOR-API.md`, `docs/DESIGN.md`); shares the SDRplay with Radio as `sdrplay-1`; release with `tools/store-release.sh <commit>` | `:kind monitor` in openhamshack-remote branch `feature/monitor-kind` (TV "Sleeve" look, `docs/tv-design/`), checked on the real Fire TV | `feature/monitor-apple` (tvOS, on `feature/apple-platform-basics`), simulator only |
 | **OpenHamShack Desktop** (QO-100 station on DATV code) | **archived**: no live repo any more, nothing may depend on it | — | out of scope (D7) | — | — |
 
 **Supporting pieces:**
@@ -60,6 +61,7 @@ others in its row.
 - **The Ajazz AKP03E controller works with every app** through one shared controller library: apps declare actions, the platform (or the foreground desktop app) routes the pad, and PTT always goes through the TX lease (BETA-PLAN arch change 6).
 - **Every app also stands alone** on Linux/Windows/macOS; the controller is optional and apps join it as clients, offline-first (BETA-PLAN.md).
 - **Shared components, one of each** (Brian, 09/10/2026): digital-mode decoding (ohsdigi), CW decoding (ohs-libs `shack_cw`, NB's decoder; NB, Radio and Icom use it, Flex next), APRS, SSTV, recording (ohs-libs `shack_rec`: FLAC audio + SigMF IQ behind one `api/recordings` in every app; NR2 is `shack_dsp`), grid/prefix data and log formats are shared libraries; station profile, logbook, callsign lookup and spots are OpenHamShack platform services. Never add a second decoder, logbook or lookup to an app: use or extend the shared one (PLATFORM-PLAN §1.4).
+- **The one exception: OpenHamShack Monitor runs OnAir's own decoders** (Brian, 21/11/2026). Monitor is OnAir's headless server, unmodified, behind a facade, so it decodes ADS-B, AIS, APRS, DAB, FT8, CW, DMR and the rest with OnAir's code, not ohsdigi, shack_cw or shack_sdr. The exception is that and no more: no OnAir code is ported into a family library or app, Monitor's decodes reach the logbook never and the platform's spots only when an administrator allows it, and a decoder added to the family is still added once, to the shared library.
 - **Rig apps are one per maker** (OpenHamShack Icom, OpenHamShack Flex, later Yaesu/Kenwood) on a shared rig-control library; Flex is separate because SmartSDR is nothing like CAT/CI-V.
 - **OpenHamShack owns the hardware.** Apps claim devices from the platform's
   broker and never assume exclusive access (PLATFORM-PLAN §1.3).
@@ -1251,6 +1253,11 @@ Each script's header has the detail; these replace doing it by hand.
   `get` reads either tier, `restore` brings one back. ohs-box has no rsync, so
   iqlib falls back to scp there. Layout, fields and conversions: README.md on
   office (`/srv/iq/README.md`); tool `tools/iqlib`, tests `tools/iqlib-tests`.
+
+- **OnAir's headless server keeps its per-mode panel on the browser-app side** (`/app/v1/panel`, `schema`, port 8073), not on the remote API (8765), and has no decoded-message stream. Monitor runs it with `app=1` bound to 127.0.0.1 and reads decodes from the panel's tables.
+- **A store app can keep a process off the network without the platform**: `unshare --user --map-root-user --net` works inside a rootless podman container with the store flags and gives a namespace with only `lo`. Dock360 itself has no egress control.
+- **Test runs must be silent** (Brian, 21/11/2026): a simulator on the Mac mini played a fake's 1 kHz tone through the speakers. Run fakes with their tone off (`FAKEMONITOR_TONE=0`), emulators with `-no-audio`, set a real TV's volume to 0 and restore it; check audio by levels, never by ear.
+- **Store versions need a prerelease part** (`0.1.1-beta.1`, as Radio's): openhamshack-nb's box-store-update.sh labels the rollback `<new>.rollback`, which is only valid semver when `<new>` already has one.
 
 ## 6. Releases and ownership
 
